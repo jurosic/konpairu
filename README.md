@@ -1,4 +1,2 @@
 # konpairu
-VUT FIT IFJ26 compiler project 
-
-lol
+VUT FIT IFJ26 compiler project
