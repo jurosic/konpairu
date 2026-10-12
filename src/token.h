@@ -7,6 +7,8 @@ typedef union {
     int int_val;            // For integer literals
     double float_val;       // For float literals
     char *str_val;          // For string literals
+    char *name;             // For identificator names
+    unsigned int indent_weight; // For new lines
     //void *custom_val;     // Generic pointer for any custom value
 } TokenValue;
 
@@ -15,7 +17,7 @@ typedef union {
 typedef struct {
     TokenType type;     // Token type
     TokenValue value;   // Extra metadata associated with the token
-                        // (this is unused for all tokens except literals and names)
+                        // (this is unused for all tokens except literals, names and indents)
     
     // optional metadata for compile-time error messages
     //int line;           
@@ -25,11 +27,12 @@ typedef struct {
 
 // Enum of all possible token types
 typedef enum {
-    // File codes, white spaces
+    // File reading
     TOKEN_EOF = 0,      // EOF
-    TOKEN_SPACE,        // single space
-    TOKEN_TAB,          // tab of space
-    TOKEN_NEWLINE,      // new line
+    TOKEN_NEWLINE,      // new line (also has tokenvalue indent_weight)
+
+    //TOKEN_SPACE,      // single space
+    //TOKEN_TAB,        // tab of space
 
     // Tokens with values (literals, identifiers)
     TOKEN_ID,           // any variable name - abc123
@@ -76,7 +79,7 @@ typedef enum {
 
     // Relation operators
     TOKEN_EQUALS,       // ==
-    TOKEN_NOT,          // !=
+    TOKEN_NOTEQUALS,    // !=
     TOKEN_LESS,         // <
     TOKEN_GREATER,      // >
     TOKEN_LESSEQUAL,    // <=
