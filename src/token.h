@@ -29,12 +29,11 @@ typedef struct {
 typedef enum {
     // File reading
     TOKEN_EOF = 0,      // EOF
-    TOKEN_NEWLINE,      // new line (also has tokenvalue indent_weight)
-
     //TOKEN_SPACE,      // single space
     //TOKEN_TAB,        // tab of space
 
-    // Tokens with values (literals, identifiers)
+    // Tokens with values (newline, identifiers, literals)
+    TOKEN_NEWLINE,      // new line (also has tokenvalue indent_weight)
     TOKEN_ID,           // any variable name - abc123
     TOKEN_LIT_INT,      // any integer  - 31
     TOKEN_LIT_DOUBLE,   // any float    - 3.1
