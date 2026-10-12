@@ -71,10 +71,10 @@ typedef enum {
     TOKEN_RETURN,       // return
 
     // Math operators
-    TOKEN_PLUS,         // +
-    TOKEN_MINUS,        // -
-    TOKEN_DIVIDE,       // /
-    TOKEN_TIMES,        // *
+    TOKEN_ADD,          // +
+    TOKEN_SUB,          // -
+    TOKEN_DIV,          // /
+    TOKEN_MUL,          // *
 
     // Relation operators
     TOKEN_EQUALS,       // ==
