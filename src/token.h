@@ -41,9 +41,9 @@ typedef enum {
     TOKEN_IMPORT,       // import
     TOKEN_VAL,          // val
     TOKEN_VAR,          // var
-    TOKEN_CLASS,        // class    //EXTENSION
+    TOKEN_CLASS,        // class     //EXTENSION
     TOKEN_EXTENSION,    // extension //EXTENSION
-    TOKEN_TYPE,         // type     //EXTENSION
+    TOKEN_TYPE,         // type      //EXTENSION
     // Datatypes
     TOKEN_INT,          // Int
     TOKEN_DOUBLE,       // Double
@@ -63,7 +63,7 @@ typedef enum {
     TOKEN_FOR,          // for      //EXTENSION
     TOKEN_TO,           // to       //EXTENSION
     TOKEN_UNTIL,        // until    //EXTENSION
-    TOKEN_BY,           // by    //EXTENSION
+    TOKEN_BY,           // by       //EXTENSION
     // Functions
     TOKEN_DEF,          // def
     TOKEN_RETURN,       // return
@@ -83,12 +83,12 @@ typedef enum {
     TOKEN_GREATEREQUAL, // >=
 
     // Parentheses, Brackets, Braces
-    TOKEN_PAREN_L,   // (
-    TOKEN_PAREN_R,   // )
-    TOKEN_BRACK_L,   // [
-    TOKEN_BRACK_R,   // ]
-    TOKEN_BRACE_L,   // {
-    TOKEN_BRACE_R,   // }
+    TOKEN_PAREN_L,      // (
+    TOKEN_PAREN_R,      // )
+    TOKEN_BRACK_L,      // [
+    TOKEN_BRACK_R,      // ]
+    TOKEN_BRACE_L,      // {
+    TOKEN_BRACE_R,      // }
 
     // idk
     TOKEN_ASSIGN,       // =
