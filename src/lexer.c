@@ -64,6 +64,11 @@ int read_char(Lexer *lexer) {
     return lexer->current_char;
 }
 
+// Reads and throws away whitespace
+void read_whitespace(Lexer* lexer) {
+    while (lexer->current_char == ' ')
+        read_char(lexer);
+}
 // Reads and throws away the rest of a line comment
 void read_line_comment(Lexer* lexer) {
     while (read_char(lexer) != EOF && lexer->current_char != '\n') {}
@@ -83,21 +88,26 @@ void read_block_comment(Lexer* lexer) {
 
 // API: Processes and returns the next token from the stream
 Token lexer_next_token(Lexer *lexer) {
-    //check if whitespace, pass whitespace
-    while (lexer->current_char == ' ')
-        read_char(lexer);
+    
+    // Check for whitespace and comments (also tokenize single '/')
+    // logic is looped for cases like " /* */  /**/  "
+    while (lexer->current_char == ' ' || lexer->current_char == '/') {
+        //check if whitespace, pass whitespace
+        read_whitespace(lexer);
 
-    //check if comment, pass comment (and tokenize single /)
-    if (lexer->current_char == '/') {
-        read_char(lexer);
+        //check if comment, pass comment
         if (lexer->current_char == '/') {
-            //line comment starting with //
-            read_line_comment(lexer);
-        } else if (lexer->current_char == '*') {
-            //block comment starting with /*
-            read_block_comment(lexer);
-        } else {
-            return create_token(TOKEN_DIV);
+            read_char(lexer);
+            if (lexer->current_char == '/') {
+                //line comment starting with //
+                read_line_comment(lexer);
+            } else if (lexer->current_char == '*') {
+                //block comment starting with /*
+                read_block_comment(lexer);
+            } else {
+                //if not a comment, just return a '/' token
+                return create_token(TOKEN_DIV);
+            }
         }
     }
 
