@@ -7,13 +7,13 @@
 #include "token.h"
 #include "lexer.h"
 
-// Define your keyword mapping structure
+// Keyword structure for use in searching keywords
 typedef struct {
     const char *word;
     TokenType type;
 } Keyword;
 
-// List all your keywords here
+// List of all keywords
 static const Keyword keywords[] = {
     {"import", TOKEN_IMPORT},
     {"val", TOKEN_VAL},
