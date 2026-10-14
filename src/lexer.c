@@ -67,7 +67,10 @@ int read_char(Lexer *lexer) {
 // API: Processes and returns the next token from the stream
 Token lexer_next_token(Lexer *lexer) {
     //check if whitespace, pass whitespace
-    while (lexer->current_char == )
+    while (lexer->current_char == ' ')
+        read_char(lexer);
+
+    //check if comment
 
     //check if EOF
     
