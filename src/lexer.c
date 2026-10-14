@@ -88,7 +88,7 @@ void read_block_comment(Lexer* lexer) {
 
 // API: Processes and returns the next token from the stream
 Token lexer_next_token(Lexer *lexer) {
-    
+
     // Check for whitespace and comments (also tokenize single '/')
     // logic is looped for cases like " /* */  /**/  "
     while (lexer->current_char == ' ' || lexer->current_char == '/') {
@@ -111,9 +111,24 @@ Token lexer_next_token(Lexer *lexer) {
         }
     }
 
-    //check if EOF
-    
     //check if new line, read indent weight, return token
+    if (lexer->current_char == '\n') {
+        unsigned int indent_size = 0;
+        // count the indent_weight by counting spaces from start of a new line
+        // if a line is entirely empty, skip it and start counting from 0 again
+        while (read_char(lexer) == ' ' || lexer->current_char == '\n') {
+            indent_size++;
+            if (lexer->current_char == '\n') indent_size == 0;
+        }
+        // if after all those lines is an EOF, just forget the newline token
+        // (remove this if parser wants to check for an empty new line at end of file)
+        if (lexer->current_char != EOF)
+            return create_token_newline(indent_size);
+    }
+
+    //check if EOF
+    if (lexer->current_char == EOF)
+        return create_token(TOKEN_EOF);
     
     //check if number, read int/float, return token
 
@@ -121,7 +136,7 @@ Token lexer_next_token(Lexer *lexer) {
 
     //check if quotes, read and save string, return token
 
-    //else convert non-alphanum symbols to tokens (except /)
+    //else convert non-alphanum symbols to tokens (except '/')
 
 }
 
