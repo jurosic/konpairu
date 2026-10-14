@@ -1,11 +1,46 @@
 
 
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 #include "token.h"
 #include "lexer.h"
 
+// Define your keyword mapping structure
+typedef struct {
+    const char *word;
+    TokenType type;
+} Keyword;
+
+// List all your keywords here
+static const Keyword keywords[] = {
+    {"import", TOKEN_IMPORT},
+    {"val", TOKEN_VAL},
+    {"var", TOKEN_VAR},
+    {"class", TOKEN_CLASS},
+    {"extension", TOKEN_EXTENSION},
+    {"type", TOKEN_TYPE},
+    {"Int", TOKEN_INT},
+    {"Double", TOKEN_DOUBLE},
+    {"String", TOKEN_STRING},
+    {"Unit", TOKEN_UNIT},
+    {"Boolean", TOKEN_BOOLEAN},
+    {"List", TOKEN_LIST},
+    {"if", TOKEN_IF},
+    {"then", TOKEN_THEN},
+    {"else", TOKEN_ELSE},
+    {"case", TOKEN_CASE},
+    {"match", TOKEN_MATCH},
+    {"while", TOKEN_WHILE},
+    {"do", TOKEN_DO},
+    {"for", TOKEN_FOR},
+    {"to", TOKEN_TO},
+    {"until", TOKEN_UNTIL},
+    {"by", TOKEN_BY},
+    {"def", TOKEN_DEF},
+    {"return", TOKEN_RETURN}
+};
 
 // Create empty token of type token_t
 Token create_token(TokenType token_t) {
@@ -87,6 +122,12 @@ void read_block_comment(Lexer* lexer) {
     //EOF is captured by the main fetch function
 }
 
+// Checks if word is keyword, returns tokentype. Returns TOKEN_EOF if not keyword.
+TokenType is_keyword(char* word) {
+
+}
+
+
 // API: Processes and returns the next token from the stream
 Token lexer_next_token(Lexer *lexer) {
 
@@ -134,8 +175,8 @@ Token lexer_next_token(Lexer *lexer) {
     //check if number, read int/float, return token
     if (isnumber(lexer->current_char)) {
         char scan_buffer[128];
-        int length = 1;
         scan_buffer[0] = lexer->current_char;
+        int length = 1;
         int is_double = 0;
 
         while (isnumber(read_char(lexer)) || lexer->current_char == '.') {
@@ -149,11 +190,29 @@ Token lexer_next_token(Lexer *lexer) {
         else return create_token_int(atoi(scan_buffer));
     }
 
-    //check if letter followed by alphanum, read name, check if keyword, return token
+    //check if alpha character followed by alphanums, read text, check if keyword or ID, return token
+    if (isalpha(lexer->current_char)) {
+        char scan_buffer[256];
+        scan_buffer[0] = lexer->current_char;
+        int length = 1;
+
+        //read text
+        while (length < 256 && (isalnum(read_char(lexer)) || lexer->current_char == '-'))
+            scan_buffer[length++] = lexer->current_char;
+        scan_buffer[length] = '\0';
+
+        //check for keyword, return keyword token
+        
+
+        //return ID token if not keyword
+        //allocate a string and copy the scan_buffer into it
+        
+    }
 
     //check if quotes, read and save string, return token
 
     //else convert non-alphanum symbols to tokens (except '/')
+    //also checks for @main
 
 }
 
