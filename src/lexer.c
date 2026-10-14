@@ -64,13 +64,42 @@ int read_char(Lexer *lexer) {
     return lexer->current_char;
 }
 
+// Reads and throws away the rest of a line comment
+void read_line_comment(Lexer* lexer) {
+    while (read_char(lexer) != EOF && lexer->current_char != '\n') {}
+    //EOF is captured by the main fetch function
+}
+// Reads and throws away the rest of a block comment (still counts lines)
+void read_block_comment(Lexer* lexer) {
+    while (read_char(lexer) != EOF) {
+        if (lexer->current_char == '*' && read_char(lexer) == "/") {
+            //read next character to pass entire comment block
+            read_char(lexer); 
+            return;
+        }
+    }
+    //EOF is captured by the main fetch function
+}
+
 // API: Processes and returns the next token from the stream
 Token lexer_next_token(Lexer *lexer) {
     //check if whitespace, pass whitespace
     while (lexer->current_char == ' ')
         read_char(lexer);
 
-    //check if comment
+    //check if comment, pass comment (and tokenize single /)
+    if (lexer->current_char == '/') {
+        read_char(lexer);
+        if (lexer->current_char == '/') {
+            //line comment starting with //
+            read_line_comment(lexer);
+        } else if (lexer->current_char == '*') {
+            //block comment starting with /*
+            read_block_comment(lexer);
+        } else {
+            return create_token(TOKEN_DIV);
+        }
+    }
 
     //check if EOF
     
@@ -82,7 +111,7 @@ Token lexer_next_token(Lexer *lexer) {
 
     //check if quotes, read and save string, return token
 
-    //else convert non-alphanum symbols to tokens
+    //else convert non-alphanum symbols to tokens (except /)
 
 }
 
