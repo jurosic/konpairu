@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 #include "token.h"
 #include "lexer.h"
 
@@ -21,7 +22,7 @@ Token create_token_int(int token_val) {
 }
 
 // Create token of type TOKEN_LIT_DOUBLE with value token_val
-Token create_token_float(double token_val) {
+Token create_token_double(double token_val) {
     Token new_token = create_token(TOKEN_LIT_DOUBLE);
     new_token.value.int_val = token_val;
     return new_token;
@@ -131,6 +132,22 @@ Token lexer_next_token(Lexer *lexer) {
         return create_token(TOKEN_EOF);
     
     //check if number, read int/float, return token
+    if (isnumber(lexer->current_char)) {
+        char scan_buffer[128];
+        int length = 1;
+        scan_buffer[0] = lexer->current_char;
+        int is_double = 0;
+
+        while (isnumber(read_char(lexer)) || lexer->current_char == '.') {
+            if (lexer->current_char == ".")
+                is_double = 1;
+            scan_buffer[length++] = lexer->current_char;
+        }
+        scan_buffer[length] = '\0';
+
+        if (is_double) return create_token_double(atof(scan_buffer));
+        else return create_token_int(atoi(scan_buffer));
+    }
 
     //check if letter followed by alphanum, read name, check if keyword, return token
 
