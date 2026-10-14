@@ -27,21 +27,21 @@ Token create_token_float(double token_val) {
     return new_token;
 }
 
-// Create token of type TOKEN_LIT_STR with value token_val
+// Create token of type TOKEN_LIT_STR with value token_strval
 Token create_token_str(char* token_strval) {
     Token new_token = create_token(TOKEN_LIT_STR);
     new_token.value.str_val = token_strval;
     return new_token;
 }
 
-// Create token of type TOKEN_ID with value token_val
+// Create token of type TOKEN_ID with value token_name
 Token create_token_id(char* token_name) {
     Token new_token = create_token(TOKEN_ID);
     new_token.value.name = token_name;
     return new_token;
 }
 
-// Create token of type TOKEN_NEWLINE with value token_val
+// Create token of type TOKEN_NEWLINE with value indent_weight
 Token create_token_newline(unsigned int indent_weight) {
     Token new_token = create_token(TOKEN_NEWLINE);
     new_token.value.indent_weight = indent_weight;
@@ -67,10 +67,26 @@ Lexer* lexer_init(FILE *stream) {
     return lexer;
 }
 
-// Processes and returns the next token from the stream
-Token lexer_next_token(Lexer *lexer);
-
 // Memory cleanup for the lexer object/struct
 void lexer_free(Lexer *lexer) {
     free(lexer); //😭
+}
+
+
+// Processes and returns the next token from the stream
+Token lexer_next_token(Lexer *lexer) {
+    //check if whitespace, pass whitespace
+
+    //check if EOF
+    
+    //check if new line, read indent weight, return token
+    
+    //check if number, read int/float, return token
+
+    //check if letter followed by alphanum, read name, check if keyword, return token
+
+    //check if quotes, read and save string, return token
+
+    //else convert non-alphanum symbols to tokens
+
 }
