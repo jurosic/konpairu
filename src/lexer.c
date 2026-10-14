@@ -1,6 +1,6 @@
 
 
-
+#include <stdlib.h>
 #include <stdio.h>
 #include "token.h"
 #include "lexer.h"
@@ -50,10 +50,27 @@ Token create_token_newline(unsigned int indent_weight) {
 
 
 // Initializes the lexer with a file stream
-Lexer* lexer_init(FILE *stream);
+Lexer* lexer_init(FILE *stream) {
+    //check if stream is valid
+    if (stream == NULL) return NULL;
+
+    //i am sorry for deciding to use pointers and malloc for the lexer
+    //it is completely unnecessary
+    Lexer* lexer = malloc(sizeof(Lexer));
+    if (lexer == NULL) return NULL;
+
+    lexer->stream = stream;
+    lexer->current_char = fgetc(stream); // setup first character
+    lexer->line = 0;
+    lexer->column = 0;
+
+    return lexer;
+}
 
 // Processes and returns the next token from the stream
 Token lexer_next_token(Lexer *lexer);
 
 // Memory cleanup for the lexer object/struct
-void lexer_free(Lexer *lexer);
+void lexer_free(Lexer *lexer) {
+    free(lexer); //😭
+}
