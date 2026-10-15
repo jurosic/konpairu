@@ -9,7 +9,7 @@
 
 // Keyword structure for use in searching keywords
 typedef struct {
-    const char *word;
+    const char* word;
     TokenType type;
 } Keyword;
 
@@ -122,9 +122,17 @@ void read_block_comment(Lexer* lexer) {
     //EOF is captured by the main fetch function
 }
 
-// Checks if word is keyword, returns tokentype. Returns TOKEN_EOF if not keyword.
+// Checks if word is keyword from keyword lookup table, returns TokenType.
+// Returns TOKEN_ID TokenType if not keyword.
 TokenType is_keyword(char* word) {
-
+    int num_keywords = sizeof(keywords) / sizeof(keywords[0]);
+    
+    for (int i = 0; i < num_keywords; i++)
+        if (strcmp(word, keywords[i].word) == 0)
+            return keywords[i].type; // found keyword
+    
+    // not a keyword, just a regular variable/function name
+    return TOKEN_ID; 
 }
 
 
@@ -202,11 +210,13 @@ Token lexer_next_token(Lexer *lexer) {
         scan_buffer[length] = '\0';
 
         //check for keyword, return keyword token
-        
+        TokenType keyword_type = is_keyword(scan_buffer);
+        if (keyword_type != TOKEN_ID)
+            return create_token(keyword_type);
 
-        //return ID token if not keyword
-        //allocate a string and copy the scan_buffer into it
-        
+        //return ID token with .name if not keyword
+        //STRDUP USES MALLOC!!! Warning about str/id token freeing is in token.h 
+        return create_token_id(strdup(scan_buffer));
     }
 
     //check if quotes, read and save string, return token
