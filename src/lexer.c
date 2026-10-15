@@ -49,7 +49,9 @@ static const Keyword keywords[] = {
     {"until", TOKEN_UNTIL},
     {"by", TOKEN_BY},
     {"def", TOKEN_DEF},
-    {"return", TOKEN_RETURN}
+    {"return", TOKEN_RETURN},
+    {"true", TOKEN_LIT_BOOL}, //intentional, bool value identified by first letter
+    {"false", TOKEN_LIT_BOOL},
 };
 
 // Create empty token of type token_t
@@ -66,10 +68,17 @@ Token create_token_int(int token_val) {
     return new_token;
 }
 
+// Create token of type TOKEN_LIT_BOOL with value token_val
+Token create_token_bool(int token_val) {
+    Token new_token = create_token(TOKEN_LIT_BOOL);
+    new_token.value.bool_val = token_val;
+    return new_token;
+}
+
 // Create token of type TOKEN_LIT_DOUBLE with value token_val
 Token create_token_double(double token_val) {
     Token new_token = create_token(TOKEN_LIT_DOUBLE);
-    new_token.value.int_val = token_val;
+    new_token.value.double_val = token_val;
     return new_token;
 }
 
@@ -134,7 +143,7 @@ void read_block_comment(Lexer* lexer) {
 
 // Checks if word is keyword from keyword lookup table, returns TokenType.
 // Returns TOKEN_ID TokenType if not keyword.
-TokenType is_keyword(char* word) {
+TokenType find_keyword(char* word) {
     int num_keywords = sizeof(keywords) / sizeof(keywords[0]);
     
     for (int i = 0; i < num_keywords; i++)
@@ -146,12 +155,10 @@ TokenType is_keyword(char* word) {
 }
 
 
-
-
 // API: Processes and returns the next token from the stream
 Token lexer_next_token(Lexer *lexer) {
 
-    // Check for whitespace and comments (also tokenize single '/')
+    // CHECK FOR WHITESPACE AND COMMENTS (also tokenize single '/')
     // logic is looped for cases like " /* */  /**/  "
     while (lexer->current_char == ' ' || lexer->current_char == '/') {
         //check if whitespace, pass whitespace
@@ -173,7 +180,7 @@ Token lexer_next_token(Lexer *lexer) {
         }
     }
 
-    //check if new line, read indent weight, return token
+    //CHECK FOR NEWLINE, READ INDENT WEIGHT, RETURN TOKEN
     if (lexer->current_char == '\n') {
         unsigned int indent_size = 0;
         // count the indent_weight by counting spaces from start of a new line
@@ -188,11 +195,11 @@ Token lexer_next_token(Lexer *lexer) {
             return create_token_newline(indent_size);
     }
 
-    //check if EOF
+    //CHECK FOR EOF, RETURN TOKEN
     if (lexer->current_char == EOF)
         return create_token(TOKEN_EOF);
     
-    //check if number literal, read int/float, return token
+    //CHECK FOR NUMBER LITERAL, READ INT/FLOAT, RETURN TOKEN
     if (isdigit(lexer->current_char)) {
         char scan_buffer[LEXERLIMIT_NUMLIT_LENGTH+1];
         scan_buffer[0] = lexer->current_char;
@@ -210,7 +217,8 @@ Token lexer_next_token(Lexer *lexer) {
         else return create_token_int(atoi(scan_buffer));
     }
 
-    //check if alpha character followed by alphanums, read text, check if keyword or ID, return token
+    //CHECK FOR ALPHA CHARACATER FOLLOWED BY ALPHANUM CHARACTERS
+    //READ WORD, CHECK IF KEYWORD OR IDENTIFICATOR, RETURN TOKEN
     if (isalpha(lexer->current_char)) {
         char scan_buffer[LEXERLIMIT_ID_LENGTH+1];
         scan_buffer[0] = lexer->current_char;
@@ -222,16 +230,18 @@ Token lexer_next_token(Lexer *lexer) {
         scan_buffer[length] = '\0';
 
         //check for keyword, return keyword token
-        TokenType keyword_type = is_keyword(scan_buffer);
-        if (keyword_type != TOKEN_ID)
-            return create_token(keyword_type);
+        TokenType keyword_type = find_keyword(scan_buffer);
+        if (keyword_type == TOKEN_ID)
+            //STRDUP USES MALLOC!!! Warning about str/id token freeing is in token.h 
+            return create_token_id(strdup(scan_buffer));
 
-        //return ID token with .name if not keyword
-        //STRDUP USES MALLOC!!! Warning about str/id token freeing is in token.h 
-        return create_token_id(strdup(scan_buffer));
+        if (keyword_type == TOKEN_LIT_BOOL)
+            return create_token_bool(scan_buffer[0] == 't');
+
+        return create_token(keyword_type);
     }
 
-    //check if quotes, read and save string, return token
+    //CHECK FOR QUOTES, READ AND SAVE STRING, RETURN TOKEN
     if (lexer->current_char == '"') {
         if (read_char(lexer) == '"') {
             if (read_char(lexer) == '"') {
@@ -291,11 +301,105 @@ Token lexer_next_token(Lexer *lexer) {
         return create_token_id(strdup(scan_buffer));
     }
 
-    //else convert non-alphanum symbols to tokens (except '/')
-    //also checks for @main
-    
+    //LASTLY, CONVERT REST OF SYMBOLS TO TOKENS (except '/')
+    //ALSO ChECKS FOR @main
+    char last_char = lexer->current_char;
+    read_char(lexer);   //prime lexer,this has to be before the switch statement
+                        //(every symbol that needs to read symbols ahead is messy right now)
 
+    switch (last_char) {
+        case '@': //@main
+            if (lexer->current_char == 'm')
+                if (read_char(lexer) == 'a')
+                    if (read_char(lexer) == 'i')
+                        if (read_char(lexer) == "n") {
+                            //found legitimate @main token
+                            read_char(lexer); //prime lexer
+                            return create_token(TOKEN_MAINFUNC);
+                        }
+            //REPORT ERROR
+            //currently just ignores wrong use of @
+            break;
+            
+        case '+':
+            return create_token(TOKEN_ADD);
+        case '-':
+            return create_token(TOKEN_SUB);
+        case '*':
+            return create_token(TOKEN_MUL);
+
+        case '=':
+            if (lexer->current_char == '=') {   // found ==
+                read_char(lexer); //prime lexer
+                return create_token(TOKEN_EQUALS);
+            }
+            if (lexer->current_char == '>') {   // found =>
+                read_char(lexer); //prime lexer
+                return create_token(TOKEN_ARROW_R);
+            }
+            return create_token(TOKEN_ASSIGN);  // found =
+
+        case '!':
+            if (lexer->current_char == "=") {   // found !=
+                read_char(lexer); //prime lexer
+                return create_token(TOKEN_NOTEQUALS);
+            }
+            return create_token(TOKEN_NOT);     // found !
+
+        case '<':
+            if (lexer->current_char == "=") {   // found <=
+                read_char(lexer); //prime lexer
+                return create_token(TOKEN_LESSEQUAL);
+            }
+            return create_token(TOKEN_LESS);    // found <
+
+        case '>':
+            if (lexer->current_char == "=") {   // found >=
+                read_char(lexer); //prime lexer
+                return create_token(TOKEN_GREATEREQUAL);
+            }
+            return create_token(TOKEN_GREATER); // found >
+
+        case '(':
+            return create_token(TOKEN_PAREN_L);
+        case ')':
+            return create_token(TOKEN_PAREN_R);
+        case '[':
+            return create_token(TOKEN_BRACK_L);
+        case ']':
+            return create_token(TOKEN_BRACK_R);
+        case '{':
+            return create_token(TOKEN_BRACE_L);
+        case '}':
+            return create_token(TOKEN_BRACE_R);
+
+        case '|':
+            if (lexer->current_char == '|') {   // found ||
+                read_char(lexer);
+                return create_token(TOKEN_OR);
+            }
+            return create_token(TOKEN_PIPE);    // found |
+
+        case '&':
+            if (lexer->current_char == "&") {   // found &&
+                read_char(lexer);
+                return create_token(TOKEN_AND); 
+            }
+            break; //ERROR invalid symbol just "&"
+
+        case ':':
+            return create_token(TOKEN_COLON);
+        case '.':
+            return create_token(TOKEN_DOT);
+        case ',':
+            return create_token(TOKEN_COMMA);
+        case '_':
+            return create_token(TOKEN_UNDERSCORE);
+    }
 }
+
+//TODO: Formatted string token.
+
 
 
 // API: Initializes the lexer with a file stream
