@@ -194,12 +194,12 @@ Token lexer_next_token(Lexer *lexer) {
     
     //check if number literal, read int/float, return token
     if (isdigit(lexer->current_char)) {
-        char scan_buffer[LIMIT_NUM_LIT_LENGTH+1];
+        char scan_buffer[LEXERLIMIT_NUMLIT_LENGTH+1];
         scan_buffer[0] = lexer->current_char;
         int length = 1;
         int is_double = 0;
 
-        while (length < LIMIT_NUM_LIT_LENGTH && (isdigit(read_char(lexer)) || lexer->current_char == '.') ) {
+        while (length < LEXERLIMIT_NUMLIT_LENGTH && (isdigit(read_char(lexer)) || lexer->current_char == '.') ) {
             if (lexer->current_char == ".")
                 is_double = 1;
             scan_buffer[length++] = lexer->current_char;
@@ -212,12 +212,12 @@ Token lexer_next_token(Lexer *lexer) {
 
     //check if alpha character followed by alphanums, read text, check if keyword or ID, return token
     if (isalpha(lexer->current_char)) {
-        char scan_buffer[LIMIT_ID_NAME_LENGTH];
+        char scan_buffer[LEXERLIMIT_ID_LENGTH+1];
         scan_buffer[0] = lexer->current_char;
         int length = 1;
 
         //read text
-        while (length < 256-1 && (isalnum(read_char(lexer)) || lexer->current_char == '-'))
+        while (length < LEXERLIMIT_ID_LENGTH && (isalnum(read_char(lexer)) || lexer->current_char == '-'))
             scan_buffer[length++] = lexer->current_char;
         scan_buffer[length] = '\0';
 
@@ -245,7 +245,8 @@ Token lexer_next_token(Lexer *lexer) {
         }
         
         //found one quote, read string into token
-        char scan_buffer[2048]
+        char scan_buffer[LEXERLIMIT_STRLIT_LENGTH+1];
+        
 
     }
 
