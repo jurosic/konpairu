@@ -235,19 +235,61 @@ Token lexer_next_token(Lexer *lexer) {
     if (lexer->current_char == '"') {
         if (read_char(lexer) == '"') {
             if (read_char(lexer) == '"') {
-                //found three quotes, read multiline string into token
+                //found 3 quotes, read multiline string into token
+                char scan_buffer[LEXERLIMIT_STRLIT_LENGTH+1];
+                scan_buffer[0] = read_char(lexer);
+                int length = 1;
+                int quote_count = 0;
 
-            } else {
-                //found two quotes, check for empty string or multiline string
-                read_char(lexer); //prime lexer to read new character
-                return create_token_str("");
+                while (length < LEXERLIMIT_STRLIT_LENGTH) {
+                    if (lexer->current_char != EOF) {
+                        // INVALID STRING, wasn't ended correctly
+                        // TODO: error reporting. Maybe returning a special error token and
+                        //  putting an error message in the lexer struct?
+                        length = 0; break;
+                    }
+                    if (lexer->current_char == '"') {
+                        quote_count++;
+                        if (quote_count == 3) {
+                            // Found the ending 3 quotes of the multiline string
+                            //[x,x,x,",",", , , ]
+                            //     ^--3---
+                            length = length-3;
+                            break;
+                        }
+                    }else{
+                        quote_count = 0;
+                    }
+                    scan_buffer[length++] = lexer->current_char;
+                    read_char(lexer);
+                }
+                scan_buffer[length] = '\0';
+
+                return create_token_id(strdup(scan_buffer));
             }
+
+            //found exactly 2 quotes, return empty string token
+            read_char(lexer); //prime lexer to read next char
+            return create_token_str("");
         }
         
-        //found one quote, read string into token
+        //found 1 quote, read string into token
         char scan_buffer[LEXERLIMIT_STRLIT_LENGTH+1];
-        
+        int length = 0;
 
+        while (lexer->current_char != '"' && length < LEXERLIMIT_STRLIT_LENGTH) {
+            if (lexer->current_char == EOF || lexer->current_char == '\n') {
+                // INVALID STRING, wasn't ended correctly
+                // TODO: error reporting. Maybe returning a special error token and
+                //  putting an error message in the lexer struct?
+                length = 0; break;
+            }
+            scan_buffer[length++] = lexer->current_char;
+            read_char(lexer);
+        }
+        scan_buffer[length] = '\0';
+
+        return create_token_id(strdup(scan_buffer));
     }
 
     //else convert non-alphanum symbols to tokens (except '/')
