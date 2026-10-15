@@ -1,11 +1,21 @@
 
-
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 #include "token.h"
 #include "lexer.h"
+
+//Safety limits for reading potentially infinite patterns
+typedef enum {
+    //APPLIED FOR ALL: (length limit in characters, not counting \0)
+    //identificator/keyword length limit 
+    LEXERLIMIT_ID_LENGTH = 256,
+    //num literal length limit, used for floats and ints
+    LEXERLIMIT_NUMLIT_LENGTH = 256, 
+    //string literal length limit
+    LEXERLIMIT_STRLIT_LENGTH = 2048,
+} Limits;
 
 // Keyword structure for use in searching keywords
 typedef struct {
@@ -114,7 +124,7 @@ void read_line_comment(Lexer* lexer) {
 void read_block_comment(Lexer* lexer) {
     while (read_char(lexer) != EOF) {
         if (lexer->current_char == '*' && read_char(lexer) == "/") {
-            //read next character to pass entire comment block
+            //read next character to continue seamless reading
             read_char(lexer); 
             return;
         }
@@ -134,6 +144,8 @@ TokenType is_keyword(char* word) {
     // not a keyword, just a regular variable/function name
     return TOKEN_ID; 
 }
+
+
 
 
 // API: Processes and returns the next token from the stream
@@ -180,14 +192,14 @@ Token lexer_next_token(Lexer *lexer) {
     if (lexer->current_char == EOF)
         return create_token(TOKEN_EOF);
     
-    //check if number, read int/float, return token
-    if (isnumber(lexer->current_char)) {
-        char scan_buffer[128];
+    //check if number literal, read int/float, return token
+    if (isdigit(lexer->current_char)) {
+        char scan_buffer[LIMIT_NUM_LIT_LENGTH+1];
         scan_buffer[0] = lexer->current_char;
         int length = 1;
         int is_double = 0;
 
-        while (isnumber(read_char(lexer)) || lexer->current_char == '.') {
+        while (length < LIMIT_NUM_LIT_LENGTH && (isdigit(read_char(lexer)) || lexer->current_char == '.') ) {
             if (lexer->current_char == ".")
                 is_double = 1;
             scan_buffer[length++] = lexer->current_char;
@@ -200,12 +212,12 @@ Token lexer_next_token(Lexer *lexer) {
 
     //check if alpha character followed by alphanums, read text, check if keyword or ID, return token
     if (isalpha(lexer->current_char)) {
-        char scan_buffer[256];
+        char scan_buffer[LIMIT_ID_NAME_LENGTH];
         scan_buffer[0] = lexer->current_char;
         int length = 1;
 
         //read text
-        while (length < 256 && (isalnum(read_char(lexer)) || lexer->current_char == '-'))
+        while (length < 256-1 && (isalnum(read_char(lexer)) || lexer->current_char == '-'))
             scan_buffer[length++] = lexer->current_char;
         scan_buffer[length] = '\0';
 
@@ -220,6 +232,22 @@ Token lexer_next_token(Lexer *lexer) {
     }
 
     //check if quotes, read and save string, return token
+    if (lexer->current_char == '"') {
+        if (read_char(lexer) == '"') {
+            if (read_char(lexer) == '"') {
+                //found three quotes, read multiline string into token
+
+            } else {
+                //found two quotes, check for empty string or multiline string
+                read_char(lexer); //prime lexer to read new character
+                return create_token_str("");
+            }
+        }
+        
+        //found one quote, read string into token
+        char scan_buffer[2048]
+
+    }
 
     //else convert non-alphanum symbols to tokens (except '/')
     //also checks for @main
