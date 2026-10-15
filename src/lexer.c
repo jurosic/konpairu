@@ -246,14 +246,14 @@ Token lexer_next_token(Lexer *lexer) {
                         // INVALID STRING, wasn't ended correctly
                         // TODO: error reporting. Maybe returning a special error token and
                         //  putting an error message in the lexer struct?
-                        length = 0; break;
+                        length = 0; break; //currently returns empty string
                     }
                     if (lexer->current_char == '"') {
                         quote_count++;
                         if (quote_count == 3) {
                             // Found the ending 3 quotes of the multiline string
-                            //[x,x,x,",",", , , ]
-                            //     ^--3---
+                            //buffer = [x,x,x,",",", , , ]
+                            //              ^--3---
                             length = length-3;
                             break;
                         }
@@ -280,9 +280,8 @@ Token lexer_next_token(Lexer *lexer) {
         while (lexer->current_char != '"' && length < LEXERLIMIT_STRLIT_LENGTH) {
             if (lexer->current_char == EOF || lexer->current_char == '\n') {
                 // INVALID STRING, wasn't ended correctly
-                // TODO: error reporting. Maybe returning a special error token and
-                //  putting an error message in the lexer struct?
-                length = 0; break;
+                // TODO: error reporting
+                length = 0; break; //currently returns empty string
             }
             scan_buffer[length++] = lexer->current_char;
             read_char(lexer);
@@ -294,6 +293,7 @@ Token lexer_next_token(Lexer *lexer) {
 
     //else convert non-alphanum symbols to tokens (except '/')
     //also checks for @main
+    
 
 }
 
