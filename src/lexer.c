@@ -9,7 +9,7 @@
 //Safety limits for reading potentially infinite patterns
 typedef enum {
     //APPLIED FOR ALL: (length limit in characters, not counting \0)
-    //identificator/keyword length limit 
+    //identifier/keyword length limit 
     LEXERLIMIT_ID_LENGTH = 256,
     //num literal length limit, used for floats and ints
     LEXERLIMIT_NUMLIT_LENGTH = 256, 
@@ -52,9 +52,10 @@ static const Keyword keywords[] = {
     {"by", TOKEN_BY},
     {"def", TOKEN_DEF},
     {"return", TOKEN_RETURN},
-    {"true", TOKEN_LIT_BOOL}, //intentional, bool value identified by first letter
-    {"false", TOKEN_LIT_BOOL},
+    {"true", TOKEN_LIT_BOOL},   //intentional
+    {"false", TOKEN_LIT_BOOL},  //bool value is identified by first letter
 };
+
 
 // Create empty token of type token_t
 Token create_token(TokenType token_t) {
@@ -106,8 +107,9 @@ Token create_token_newline(unsigned int indent_weight) {
 }
 
 
-// Read and return one chracater
-int read_char(Lexer *lexer) {
+// Scan one character into the lexer and update lexer's position in the filestream.
+// @return Scanned character. For convenience. (as type int for EOF)
+int scan_char(Lexer *lexer) {
     // Update lexer attributes based on current char
     if (lexer->current_char == '\n') {
         lexer->line++;
@@ -124,27 +126,80 @@ int read_char(Lexer *lexer) {
 // Reads and throws away whitespace
 void read_whitespace(Lexer* lexer) {
     while (lexer->current_char == ' ')
-        read_char(lexer);
+        scan_char(lexer);
 }
+
 // Reads and throws away the rest of a line comment
 void read_line_comment(Lexer* lexer) {
-    while (read_char(lexer) != EOF && lexer->current_char != '\n') {}
+    while (scan_char(lexer) != EOF && lexer->current_char != '\n') {}
     //EOF is captured by the main fetch function
 }
-// Reads and throws away the rest of a block comment (still counts lines)
+
+// Reads and throws away the rest of a block comment (lexer still counts lines)
 void read_block_comment(Lexer* lexer) {
-    while (read_char(lexer) != EOF) {
-        if (lexer->current_char == '*' && read_char(lexer) == "/") {
+    while (scan_char(lexer) != EOF) {
+        if (lexer->current_char == '*' && scan_char(lexer) == "/") {
             //read next character to continue seamless reading
-            read_char(lexer); 
+            scan_char(lexer); 
             return;
         }
     }
     //EOF is captured by the main fetch function
 }
 
-// Checks if word is keyword from keyword lookup table, returns TokenType.
-// Returns TOKEN_ID TokenType if not keyword.
+// Reads the indent count of the next non-empty line.
+// @return TOKEN_NEWLINE with .indent_weight assigned.
+// Returns TOKEN_INVALID if LEXERLIMIT_INDENT_SIZE reached.
+Token read_indent(Lexer* lexer) {
+    unsigned int indent_size = 0;
+    // count the indent_weight by counting spaces from start of a new line
+    // if a line is entirely empty, skip it and start counting from 0 again
+    while (scan_char(lexer) == ' ' || lexer->current_char == '\n') {
+        indent_size++;
+        if (indent_size >= LEXERLIMIT_INDENT_SIZE) {
+            lexer->err_msg = "Indentation limit exceeded.";
+            lexer->column = 1; //point at start of indented line
+            return create_token(TOKEN_INVALID);
+        }
+        if (lexer->current_char == '\n') indent_size == 0;
+    }
+
+    return create_token_newline(indent_size);
+}
+
+// Reads digits and up to one dot '.' character. Converts into token.
+// Stops reading at non-digit character, so math can be written like 1+2 instead of 1 + 2.
+// @return TOKEN_LIT_INT with .int_val assigned or TOKEN_LIT_DOUBLE with .double_val assigned.
+// Returns TOKEN_INVALID if the number is longer than LEXERLIMIT_NUMLIT_LENGTH or has than one dot.
+Token read_number(Lexer* lexer) {
+    char scan_buffer[LEXERLIMIT_NUMLIT_LENGTH+1];
+    scan_buffer[0] = lexer->current_char;
+    int length = 1;
+    int is_double = 0;
+
+    while (isdigit(scan_char(lexer)) || lexer->current_char == '.') {
+        if (length >= LEXERLIMIT_NUMLIT_LENGTH) {
+            lexer->err_msg = "Number literal length limit exceeded.";
+            return create_token(TOKEN_INVALID);
+        }
+        if (lexer->current_char == ".") {
+            if (!is_double) is_double = 1;
+            else {
+                // found something like 123.2.105
+                lexer->err_msg = "Invalid number literal.";
+                return create_token(TOKEN_INVALID);
+            }
+        }
+        scan_buffer[length++] = lexer->current_char;
+    }
+    scan_buffer[length] = '\0';
+
+    if (is_double) return create_token_double(atof(scan_buffer));
+    else return create_token_int(atoi(scan_buffer));
+}
+
+// Checks if word is keyword from the keywords lookup table.
+// @returns TokenType of the found keyword or TOKEN_ID TokenType if word is not keyword.
 TokenType find_keyword(char* word) {
     int num_keywords = sizeof(keywords) / sizeof(keywords[0]);
     
@@ -156,189 +211,113 @@ TokenType find_keyword(char* word) {
     return TOKEN_ID; 
 }
 
+// Reads word and checks if it's a keyword. If it isn't, it's an identifier.
+// First letter has to be an alphabetical character, the rest can be alphanumerical and also '-'.
+// @returns Any keyword token or TOKEN_ID with .name assigned.
+// Returns TOKEN_INVALID if LEXERLIMIT_ID_LENGTH reached.
+Token read_keyword_or_identifier(Lexer* lexer) {
+    char scan_buffer[LEXERLIMIT_ID_LENGTH+1];
+    scan_buffer[0] = lexer->current_char;
+    int length = 1;
 
-// API: Processes and returns the next token from the stream
-Token lexer_next_token(Lexer *lexer) {
-
-    // CHECK FOR WHITESPACE AND COMMENTS (also tokenize single '/')
-    // logic is looped for cases like " /* */   //    \n  /**/ // "
-    while (lexer->current_char == ' ' || lexer->current_char == '/') {
-        //check if whitespace, pass whitespace
-        read_whitespace(lexer);
-
-        //check if comment, pass comment
-        if (lexer->current_char == '/') {
-            read_char(lexer);
-            if (lexer->current_char == '/') {
-                //line comment starting with //
-                read_line_comment(lexer);
-            } else if (lexer->current_char == '*') {
-                //block comment starting with /*
-                read_block_comment(lexer);
-            } else {
-                //if not a comment, just return a '/' token
-                return create_token(TOKEN_DIV);
-            }
+    //read text (symbol - seems to be allowed in names in documentation)
+    while (isalnum(scan_char(lexer)) || lexer->current_char == '-') {
+        if (length >= LEXERLIMIT_ID_LENGTH){
+            lexer->err_msg = "Identifier length limit exceeded.";
+            return create_token(TOKEN_INVALID);
         }
+        scan_buffer[length++] = lexer->current_char;
     }
+    scan_buffer[length] = '\0';
 
-    //CHECK FOR NEWLINE, READ INDENT WEIGHT, RETURN TOKEN
-    if (lexer->current_char == '\n') {
-        unsigned int indent_size = 0;
-        // count the indent_weight by counting spaces from start of a new line
-        // if a line is entirely empty, skip it and start counting from 0 again
-        while (read_char(lexer) == ' ' || lexer->current_char == '\n') {
-            indent_size++;
-            if (indent_size >= LEXERLIMIT_INDENT_SIZE) {
-                lexer->err_msg = "Indentation limit exceeded.";
-                lexer->column = 1; //point at start of indented line
-                return create_token(TOKEN_INVALID);
-            }
-            if (lexer->current_char == '\n') indent_size == 0;
-        }
-        // if after all those possible lines is an EOF, just forget the newline token
-        // (remove this 'if' if parser wants to check for an empty new line at end of file)
-        if (lexer->current_char != EOF)
-            return create_token_newline(indent_size);
-    }
-
-    //CHECK FOR EOF, RETURN TOKEN
-    if (lexer->current_char == EOF)
-        return create_token(TOKEN_EOF);
-    
-    //CHECK FOR NUMBER LITERAL, READ INT/FLOAT, RETURN TOKEN
-    if (isdigit(lexer->current_char)) {
-        char scan_buffer[LEXERLIMIT_NUMLIT_LENGTH+1];
-        scan_buffer[0] = lexer->current_char;
-        int length = 1;
-        int is_double = 0;
-
-        while (isdigit(read_char(lexer)) || lexer->current_char == '.') {
-            if (length >= LEXERLIMIT_NUMLIT_LENGTH) {
-                lexer->err_msg = "Number literal length limit exceeded.";
-                return create_token(TOKEN_INVALID);
-            }
-            if (lexer->current_char == ".") {
-                if (!is_double) is_double = 1;
-                else {
-                    // found something like 123.2.105
-                    lexer->err_msg = "Invalid number literal.";
-                    return create_token(TOKEN_INVALID);
-                }
-            }
-            scan_buffer[length++] = lexer->current_char;
-        }
-        scan_buffer[length] = '\0';
-
-        if (is_double) return create_token_double(atof(scan_buffer));
-        else return create_token_int(atoi(scan_buffer));
-    }
-
-    //CHECK FOR ALPHA CHARACATER FOLLOWED BY ALPHANUM CHARACTERS
-    //READ WORD, CHECK IF KEYWORD OR IDENTIFICATOR, RETURN TOKEN
-    if (isalpha(lexer->current_char)) {
-        char scan_buffer[LEXERLIMIT_ID_LENGTH+1];
-        scan_buffer[0] = lexer->current_char;
-        int length = 1;
-
-        //read text (symbol - seems to be allowed in names in documentation)
-        while (isalnum(read_char(lexer)) || lexer->current_char == '-') {
-            if (length >= LEXERLIMIT_ID_LENGTH){
-                lexer->err_msg = "Identifier length limit exceeded.";
-                return create_token(TOKEN_INVALID);
-            }
-            scan_buffer[length++] = lexer->current_char;
-        }
-        scan_buffer[length] = '\0';
-
-        //check for keyword, return keyword token
-        TokenType keyword_type = find_keyword(scan_buffer);
-        if (keyword_type == TOKEN_ID)
-            //STRDUP USES MALLOC!!! Warning about str/id token freeing is in token.h 
-            return create_token_id(strdup(scan_buffer));
-
-        if (keyword_type == TOKEN_LIT_BOOL)
-            return create_token_bool(scan_buffer[0] == 't');
-
-        return create_token(keyword_type);
-    }
-
-    //CHECK FOR QUOTES, READ AND SAVE STRING, RETURN TOKEN
-    if (lexer->current_char == '"') {
-        if (read_char(lexer) == '"') {
-            if (read_char(lexer) == '"') {
-                //found 3 quotes, read multiline string into token
-                char scan_buffer[LEXERLIMIT_STRLIT_LENGTH+1];
-                scan_buffer[0] = read_char(lexer);
-                int length = 1;
-                int quote_count = 0;
-
-                while (length < LEXERLIMIT_STRLIT_LENGTH) {
-                    if (lexer->current_char != EOF) {
-                        // INVALID STRING, wasn't ended correctly
-                        lexer->err_msg = "Unfinished multiline string literal.";
-                        return create_token(TOKEN_INVALID);
-                    }
-                    if (lexer->current_char == '"') {
-                        quote_count++;
-                        if (quote_count == 3) {
-                            // Found the ending 3 quotes of the multiline string
-                            //buffer = [x,x,x,",",", , , ]
-                            //              ^--3---
-                            length = length-3;
-                            break;
-                        }
-                    }else{
-                        quote_count = 0;
-                    }
-                    scan_buffer[length++] = lexer->current_char;
-                    read_char(lexer);
-                }
-                scan_buffer[length] = '\0';
-
-                return create_token_id(strdup(scan_buffer));
-            }
-
-            //found exactly 2 quotes, return empty string token
-            read_char(lexer); //prime lexer to read next char
-            return create_token_str("");
-        }
-        
-        //found 1 quote, read string into token
-        char scan_buffer[LEXERLIMIT_STRLIT_LENGTH+1];
-        int length = 0;
-
-        while (lexer->current_char != '"' && length < LEXERLIMIT_STRLIT_LENGTH) {
-            if (lexer->current_char == EOF || lexer->current_char == '\n') {
-                // INVALID STRING, wasn't ended correctly
-                lexer->err_msg = "Unfinished string literal.";
-                return create_token(TOKEN_INVALID);
-            }
-            scan_buffer[length++] = lexer->current_char;
-            read_char(lexer);
-        }
-        scan_buffer[length] = '\0';
-
+    //check for keyword, return keyword token
+    TokenType keyword_type = find_keyword(scan_buffer);
+    if (keyword_type == TOKEN_ID)
+        //STRDUP USES MALLOC!!! Warning about str/id token freeing is in token.h 
         return create_token_id(strdup(scan_buffer));
+
+    if (keyword_type == TOKEN_LIT_BOOL)
+        return create_token_bool(scan_buffer[0] == 't');
+
+    return create_token(keyword_type);
+}
+
+// Read stream until quotes, convert to token.
+// Uses strdup to allocate final string from buffer.
+// @return TOKEN_LIT_STR with .str_val assigned.
+// Returns TOKEN_INVALID if string isn't ended or LEXERLIMIT_STRLIT_LENGTH reached.
+Token read_string(Lexer* lexer) {
+    char scan_buffer[LEXERLIMIT_STRLIT_LENGTH+1];
+    int length = 0;
+
+    while (lexer->current_char != '"' && length < LEXERLIMIT_STRLIT_LENGTH) {
+        if (lexer->current_char == EOF || lexer->current_char == '\n') {
+            // INVALID STRING, wasn't ended correctly
+            lexer->err_msg = "Unfinished string literal.";
+            return create_token(TOKEN_INVALID);
+        }
+        scan_buffer[length++] = lexer->current_char;
+        scan_char(lexer);
     }
+    scan_buffer[length] = '\0';
 
-    //LASTLY, CONVERT REST OF SYMBOLS TO TOKENS (except '/')
-    //ALSO ChECKS FOR @main
-    char last_char = lexer->current_char;
-    read_char(lexer);   //prime lexer,this has to be before the switch statement
-                        //(every symbol that needs to read symbols ahead is messy right now)
+    return create_token_id(strdup(scan_buffer));
+}
 
-    switch (last_char) {
+// Read stream until triple quotes, convert to token.
+// Uses strdup to allocate final string from buffer.
+// @return TOKEN_LIT_STR with .str_val assigned.
+// Returns TOKEN_INVALID if string isn't ended or LEXERLIMIT_STRLIT_LENGTH reached.
+Token read_multiline_string(Lexer* lexer) {
+    char scan_buffer[LEXERLIMIT_STRLIT_LENGTH+1];
+    scan_buffer[0] = scan_char(lexer);
+    int length = 1;
+    int quote_count = 0;
+
+    while (length < LEXERLIMIT_STRLIT_LENGTH) {
+        if (lexer->current_char == EOF) {
+            // INVALID STRING, wasn't ended correctly
+            lexer->err_msg = "Unfinished multiline string literal.";
+            return create_token(TOKEN_INVALID);
+        }
+
+        if (lexer->current_char == '"') {
+            quote_count++;
+            if (quote_count == 3) {
+                // Found the ending 3 quotes of the multiline string
+                // backtrack buffer so '\0' ends string correctly.
+                //buffer = [x,x,x,",",", , , ]
+                //              ^--3---
+                length = length-3;
+                break;
+            }
+        }else{
+            quote_count = 0;
+        }
+
+        scan_buffer[length++] = lexer->current_char;
+        scan_char(lexer);
+    }
+    scan_buffer[length] = '\0';
+
+    return create_token_str(strdup(scan_buffer));
+}
+
+// Read one or a sequence of symbols and convert into token.
+// @return Token corresponding to the found symbol/sequence.
+// Returns TOKEN_INVALID if it's an unlisted symbol.
+Token read_simple_symbols(Lexer *lexer, char prev_char) {
+    switch (prev_char) {
         case '@': //@main
             if (lexer->current_char == 'm')
-                if (read_char(lexer) == 'a')
-                    if (read_char(lexer) == 'i')
-                        if (read_char(lexer) == "n") {
+                if (scan_char(lexer) == 'a')
+                    if (scan_char(lexer) == 'i')
+                        if (scan_char(lexer) == "n") {
                             //found legitimate @main token
-                            read_char(lexer); //prime lexer
+                            scan_char(lexer); //prime next fetch
                             return create_token(TOKEN_MAINFUNC);
                         }
-            //Wrong use of @
+            // otherwise wrong use of @
             lexer->err_msg = "Invalid use of lexeme '@', can only be @main";
             return create_token(TOKEN_INVALID);
             
@@ -351,32 +330,32 @@ Token lexer_next_token(Lexer *lexer) {
 
         case '=':
             if (lexer->current_char == '=') {   // found ==
-                read_char(lexer); //prime lexer
+                scan_char(lexer); //prime lexer
                 return create_token(TOKEN_EQUALS);
             }
             if (lexer->current_char == '>') {   // found =>
-                read_char(lexer); //prime lexer
+                scan_char(lexer); //prime lexer
                 return create_token(TOKEN_ARROW_R);
             }
             return create_token(TOKEN_ASSIGN);  // found =
 
         case '!':
             if (lexer->current_char == "=") {   // found !=
-                read_char(lexer); //prime lexer
+                scan_char(lexer); //prime lexer
                 return create_token(TOKEN_NOTEQUALS);
             }
             return create_token(TOKEN_NOT);     // found !
 
         case '<':
             if (lexer->current_char == "=") {   // found <=
-                read_char(lexer); //prime lexer
+                scan_char(lexer); //prime lexer
                 return create_token(TOKEN_LESSEQUAL);
             }
             return create_token(TOKEN_LESS);    // found <
 
         case '>':
             if (lexer->current_char == "=") {   // found >=
-                read_char(lexer); //prime lexer
+                scan_char(lexer); //prime lexer
                 return create_token(TOKEN_GREATEREQUAL);
             }
             return create_token(TOKEN_GREATER); // found >
@@ -396,18 +375,18 @@ Token lexer_next_token(Lexer *lexer) {
       */
         case '|':
             if (lexer->current_char == '|') {   // found ||
-                read_char(lexer); //prime lexer
+                scan_char(lexer); //prime lexer
                 return create_token(TOKEN_OR);
             }
             return create_token(TOKEN_UNION);    // found |
 
         case '&':
             if (lexer->current_char == "&") {   // found &&
-                read_char(lexer); //prime lexer
+                scan_char(lexer); //prime lexer
                 return create_token(TOKEN_AND); 
             }
-            //ERROR invalid symbol just "&"
-            lexer->err_msg = "Invalid lexeme '&'";
+            //ERROR symbol just "&" isn't valid
+            lexer->err_msg = "Invalid symbol '&'.";
             return create_token(TOKEN_INVALID);
 
         case ':':
@@ -418,12 +397,96 @@ Token lexer_next_token(Lexer *lexer) {
             return create_token(TOKEN_COMMA);
         case '_':
             return create_token(TOKEN_UNDERSCORE);
+        
+        default:
+            lexer->err_msg = "Invalid symbol.";
+            return create_token(TOKEN_INVALID);
     }
 }
 
+
+// API: Processes and returns the next token from the stream
+Token lexer_next_token(Lexer *lexer) {
+    // Function expects that the next character for lexing is already primed.
+    // Many sections require to read the next character before confirming, so
+    //  instead of backtracking or "unscan_char()", it's done like this for simplicity.
+    // tl;dr The next character for lexing isn't read now but before each fetch returns.
+
+    // CHECK FOR WHITESPACE AND COMMENTS (also tokenize single '/')
+    // logic is looped for cases like " /* */   //    \n  /**/ // "
+    while (lexer->current_char == ' ' || lexer->current_char == '/') {
+        //check if whitespace, pass whitespace
+        read_whitespace(lexer);
+
+        //check if comment, pass comment
+        if (lexer->current_char == '/') {
+            scan_char(lexer);
+            if (lexer->current_char == '/') {
+                //line comment starting with //
+                read_line_comment(lexer);
+            } else if (lexer->current_char == '*') {
+                //block comment starting with /*
+                read_block_comment(lexer);
+            } else {
+                //if not a comment, just return a '/' token
+                return create_token(TOKEN_DIV);
+            }
+        }
+    }
+
+    //CHECK FOR NEWLINE, READ INDENT WEIGHT, RETURN TOKEN
+    if (lexer->current_char == '\n') {
+        Token indent_token = read_indent(lexer);
+        // read_indent throws away empty lines, so if after all those lines there is an EOF,
+        // just forget the newline token
+        // (remove this 'if' if parser wants to check for an empty new line at end of file)
+        if (lexer->current_char != EOF)
+            return indent_token;
+    }
+
+    //CHECK FOR EOF, RETURN TOKEN
+    if (lexer->current_char == EOF)
+        return create_token(TOKEN_EOF);
+    
+    //CHECK FOR NUMBER LITERAL, READ INT/FLOAT, RETURN TOKEN
+    if (isdigit(lexer->current_char)) {
+        return read_number(lexer);
+    }
+
+    //CHECK FOR ALPHA CHARACATER FOLLOWED BY ALPHANUM CHARACTERS
+    // READ WORD, CHECK IF KEYWORD OR IDENTIFIER, RETURN TOKEN
+    if (isalpha(lexer->current_char)) {
+        return read_keyword_or_identifier(lexer);
+    }
+
+    //CHECK FOR QUOTES, READ AND SAVE STRING, RETURN TOKEN
+    if (lexer->current_char == '"') {
+        if (scan_char(lexer) == '"') {
+            if (scan_char(lexer) == '"') {
+                return read_multiline_string(lexer);
+            }
+
+            //found exactly 2 quotes, return empty string token
+            scan_char(lexer); //prime lexer
+            // Uses strdup even on an empty string for consistency, since every other instance of
+            // a TOKEN_LIT_STR, created by this program, is also allocated and has to be freed.
+            return create_token_str(strdup(""));
+        }
+        
+        //found 1 quote, read string into token
+        return read_string(lexer);
+    }
+
+    //LASTLY, CONVERT REST OF SYMBOLS TO TOKENS (except '/')
+    //ALSO ChECKS FOR @main
+    char prev_char = lexer->current_char;
+    scan_char(lexer);   //prime lexer,this has to be before the switch statement
+                        //(every symbol that needs to read symbols ahead is messy right now)
+    return read_simple_symbols(lexer, prev_char);
+
+}
+
 //TODO: Formatted string token.
-
-
 
 // API: Initializes the lexer with a file stream
 Lexer* lexer_init(FILE *stream) {
