@@ -1,0 +1,32 @@
+name: Clang-Format Enforcer
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      
+      - run: sudo apt-get update && sudo apt-get install -y clang-format
+        
+      - id: check
+        run: |
+          find . -regex '.*\.\(c\Vert{}h\)' -exec clang-format --style=file -i {} +          
+          [[ -n "$(git status --porcelain)" ]] && echo "bad=true" >> "$GITHUB_OUTPUT" || true
+
+      - if: steps.check.outputs.bad == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OPEN=$(gh issue list --state open --search "in:title Formatting" --json number -q '.[0].number')          
+          [[ -z "$OPEN" ]] && gh issue create --title "🚨 Formatting broke" --body "Run \`clang-format -i\` locally and push." --label "bug"
+          exit 1
