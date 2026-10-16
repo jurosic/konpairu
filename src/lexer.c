@@ -8,7 +8,7 @@
 
 //Safety limits for reading potentially infinite patterns
 typedef enum {
-    //APPLIED FOR ALL: (length limit in characters, not counting \0)
+    //APPLIED FOR ALL: (limits in characters, not counting \0)
     //identifier/keyword length limit 
     LEXERLIMIT_ID_LENGTH = 256,
     //num literal length limit, used for floats and ints
@@ -19,13 +19,13 @@ typedef enum {
     LEXERLIMIT_INDENT_SIZE = 400,
 } Limits;
 
-// Keyword structure for use in searching keywords
+// Keyword structure for elements in lookup table
 typedef struct {
     const char* word;
     TokenType type;
 } Keyword;
 
-// List of all keywords
+// Simple keyword lookup table :{word, TokenType}
 static const Keyword keywords[] = {
     {"import", TOKEN_IMPORT},
     {"val", TOKEN_VAL},
@@ -52,54 +52,54 @@ static const Keyword keywords[] = {
     {"by", TOKEN_BY},
     {"def", TOKEN_DEF},
     {"return", TOKEN_RETURN},
-    {"true", TOKEN_LIT_BOOL},   //intentional
-    {"false", TOKEN_LIT_BOOL},  //bool value is identified by first letter
+    {"true", TOKEN_LIT_BOOL},   //intentional duplicate,
+    {"false", TOKEN_LIT_BOOL},  // bool value is identified by first letter
 };
 
 
-// Create empty token of type token_t
+// Return empty token of type token_t
 Token create_token(TokenType token_t) {
     Token new_token;
     new_token.type = token_t;
     return new_token;
 }
 
-// Create token of type TOKEN_LIT_INT with value token_val
+// Return token of type TOKEN_LIT_INT with value token_val
 Token create_token_int(int token_val) {
     Token new_token = create_token(TOKEN_LIT_INT);
     new_token.value.int_val = token_val;
     return new_token;
 }
 
-// Create token of type TOKEN_LIT_BOOL with value token_val
+// Return token of type TOKEN_LIT_BOOL with value token_val
 Token create_token_bool(int token_val) {
     Token new_token = create_token(TOKEN_LIT_BOOL);
     new_token.value.bool_val = token_val;
     return new_token;
 }
 
-// Create token of type TOKEN_LIT_DOUBLE with value token_val
+// Return token of type TOKEN_LIT_DOUBLE with value token_val
 Token create_token_double(double token_val) {
     Token new_token = create_token(TOKEN_LIT_DOUBLE);
     new_token.value.double_val = token_val;
     return new_token;
 }
 
-// Create token of type TOKEN_LIT_STR with value token_strval
+// Return token of type TOKEN_LIT_STR with value token_strval
 Token create_token_str(char* token_strval) {
     Token new_token = create_token(TOKEN_LIT_STR);
     new_token.value.str_val = token_strval;
     return new_token;
 }
 
-// Create token of type TOKEN_ID with value token_name
+// Return token of type TOKEN_ID with value token_name
 Token create_token_id(char* token_name) {
     Token new_token = create_token(TOKEN_ID);
     new_token.value.name = token_name;
     return new_token;
 }
 
-// Create token of type TOKEN_NEWLINE with value indent_weight
+// Return token of type TOKEN_NEWLINE with value indent_weight
 Token create_token_newline(unsigned int indent_weight) {
     Token new_token = create_token(TOKEN_NEWLINE);
     new_token.value.indent_weight = indent_weight;
@@ -200,6 +200,7 @@ Token read_number(Lexer* lexer) {
 
 // Checks if word is keyword from the keywords lookup table.
 // @returns TokenType of the found keyword or TOKEN_ID TokenType if word is not keyword.
+// Returns TOKEN_LIT_BOOL for both "true" and "false".
 TokenType find_keyword(char* word) {
     int num_keywords = sizeof(keywords) / sizeof(keywords[0]);
     
@@ -213,9 +214,11 @@ TokenType find_keyword(char* word) {
 
 // Reads word and checks if it's a keyword. If it isn't, it's an identifier.
 // First letter has to be an alphabetical character, the rest can be alphanumerical and also '-'.
-// @returns Any keyword token or TOKEN_ID with .name assigned.
+// ALSO checks for formatted string by seeing if the first letter is 's' followed by a string.
+// @returns Any keyword token, TOKEN_ID with .name assigned, TOKEN_LIT_BOOL with .bool_val assigned
+// or TOKEN_INTERPOLATOR in case of single 's' followed by a string.
 // Returns TOKEN_INVALID if LEXERLIMIT_ID_LENGTH reached.
-Token read_keyword_or_identifier(Lexer* lexer) {
+Token read_keyword_or_id_or_interpolator(Lexer* lexer) {
     char scan_buffer[LEXERLIMIT_ID_LENGTH+1];
     scan_buffer[0] = lexer->current_char;
     int length = 1;
@@ -230,12 +233,20 @@ Token read_keyword_or_identifier(Lexer* lexer) {
     }
     scan_buffer[length] = '\0';
 
+    //check for interpolated string
+    if (length == 1 && scan_buffer[0] == 's' && lexer->current_char == '"') {
+        //found interpolated string and lexer is already primed to read string next fetch call
+        return create_token(TOKEN_INTERPOLATOR);
+    }
+
     //check for keyword, return keyword token
     TokenType keyword_type = find_keyword(scan_buffer);
     if (keyword_type == TOKEN_ID)
+        //found token, return TOKEN_ID with word as .name
         //STRDUP USES MALLOC!!! Warning about str/id token freeing is in token.h 
         return create_token_id(strdup(scan_buffer));
 
+    //if "true" or "false" found, write as TOKEN_LIT_BOOL with .bool_val assigned.
     if (keyword_type == TOKEN_LIT_BOOL)
         return create_token_bool(scan_buffer[0] == 't');
 
@@ -456,7 +467,7 @@ Token lexer_next_token(Lexer *lexer) {
     //CHECK FOR ALPHA CHARACATER FOLLOWED BY ALPHANUM CHARACTERS
     // READ WORD, CHECK IF KEYWORD OR IDENTIFIER, RETURN TOKEN
     if (isalpha(lexer->current_char)) {
-        return read_keyword_or_identifier(lexer);
+        return read_keyword_or_id_or_interpolator(lexer);
     }
 
     //CHECK FOR QUOTES, READ AND SAVE STRING, RETURN TOKEN
@@ -485,8 +496,6 @@ Token lexer_next_token(Lexer *lexer) {
     return read_simple_symbols(lexer, prev_char);
 
 }
-
-//TODO: Formatted string token.
 
 // API: Initializes the lexer with a file stream
 Lexer* lexer_init(FILE *stream) {
