@@ -8,8 +8,10 @@
 typedef struct {
     FILE *stream;       // The input file stream being read character-by-character
     int current_char;   // The current character read from steam
+
     int line;           // Current line number for error reporting
     int column;         // Current column number for error reporting
+    char* err_msg;      // Contains an error string after fetching any TOKEN_INVALID
 } Lexer;
 
 
