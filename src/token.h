@@ -5,14 +5,14 @@
 // Union for every possible datatype of token.value
 typedef union {
     int int_val;            // For integer literals
-    int bool_val;          // For boolean literals
-    double double_val;       // For float literals
+    int bool_val;           // For boolean literals
+    double double_val;      // For float literals
     char *str_val;          // For string literals
     char *name;             // For identificator names
     unsigned int indent_weight; // For new lines
 } TokenValue;
 //WARNING!!
-//TOKENS USING str_val OR name NEED TO BE FREED USING free() PROPERLY
+//TOKENS USING .str_val OR .name NEED TO BE FREED USING free() PROPERLY
 //free(token.str_val) / free(token.name)
 
 
@@ -63,7 +63,7 @@ typedef enum {
     TOKEN_ELSE,         // else
     TOKEN_CASE,         // case     //EXTENSION ALGEBDT
     TOKEN_MATCH,        // match    //EXTENSION ALGEBDT
-    TOKEN_UNDERSCORE,   // _        //EXTENSION? ALGEBDT (used in match case default)
+    TOKEN_UNDERSCORE,   // _        //EXTENSION ALGEBDT (used in match case default)
     // Loops
     TOKEN_WHILE,        // while
     TOKEN_DO,           // do
