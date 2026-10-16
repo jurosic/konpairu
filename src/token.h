@@ -65,7 +65,6 @@ typedef enum {
     TOKEN_ELSE,         // else
     TOKEN_CASE,         // case     //EXTENSION ALGEBDT
     TOKEN_MATCH,        // match    //EXTENSION ALGEBDT
-    TOKEN_UNDERSCORE,   // _        //EXTENSION ALGEBDT (used in match case default)
     // Loops
     TOKEN_WHILE,        // while
     TOKEN_DO,           // do
@@ -112,6 +111,7 @@ typedef enum {
     TOKEN_COLON,        // :
     TOKEN_DOT,          // .
     TOKEN_COMMA,        // ,
+    TOKEN_UNDERSCORE,   // _        //EXTENSION ALGEBDT (used in match case default)
     TOKEN_ARROW_R,      // =>       //EXTENSION ALGEBDT and LAMBDAS
     TOKEN_UNION,        // |        //EXTENSION ALGEBDT
     TOKEN_INTERPOLATOR, // s"Interpolated string ${1+1}"    //EXTENSION INTERPOLATEDS

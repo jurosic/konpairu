@@ -1,3 +1,6 @@
+//lexer.c
+//Lexical analysis - Project IFJ+IAL - 16.10.2026
+//
 
 #include <stdlib.h>
 #include <string.h>
@@ -213,18 +216,19 @@ TokenType find_keyword(char* word) {
 }
 
 // Reads word and checks if it's a keyword. If it isn't, it's an identifier.
-// First letter has to be an alphabetical character, the rest can be alphanumerical and also '-'.
+// First letter has to be A-z or '_', the rest can be A-z or 0-9 or '-' or '_'.
+// Single '_' counts as TOKEN_UNDERSCORE, not a name.
 // ALSO checks for formatted string by seeing if the first letter is 's' followed by a string.
-// @returns Any keyword token, TOKEN_ID with .name assigned, TOKEN_LIT_BOOL with .bool_val assigned
-// or TOKEN_INTERPOLATOR in case of single 's' followed by a string.
+// @returns Any keyword token, TOKEN_ID with .name assigned, TOKEN_LIT_BOOL with .bool_val assigned,
+// TOKEN_UNDERSCORE or TOKEN_INTERPOLATOR in case of single 's' followed by a string.
 // Returns TOKEN_INVALID if LEXERLIMIT_ID_LENGTH reached.
 Token read_keyword_or_id_or_interpolator(Lexer* lexer) {
     char scan_buffer[LEXERLIMIT_ID_LENGTH+1];
     scan_buffer[0] = lexer->current_char;
     int length = 1;
 
-    //read text (symbol - seems to be allowed in names in documentation)
-    while (isalnum(scan_char(lexer)) || lexer->current_char == '-') {
+    //read text (symbols - _ seem to be allowed in names in documentation)
+    while (isalnum(scan_char(lexer)) || lexer->current_char == '-' || lexer->current_char == "_") {
         if (length >= LEXERLIMIT_ID_LENGTH){
             lexer->err_msg = "Identifier length limit exceeded.";
             return create_token(TOKEN_INVALID);
@@ -234,10 +238,13 @@ Token read_keyword_or_id_or_interpolator(Lexer* lexer) {
     scan_buffer[length] = '\0';
 
     //check for interpolated string
-    if (length == 1 && scan_buffer[0] == 's' && lexer->current_char == '"') {
+    if (length == 1 && scan_buffer[0] == 's' && lexer->current_char == '"')
         //found interpolated string and lexer is already primed to read string next fetch call
         return create_token(TOKEN_INTERPOLATOR);
-    }
+
+    //check for single underscore
+    if (length == 1 && scan_buffer[0] == '_')
+        return create_token(TOKEN_UNDERSCORE);
 
     //check for keyword, return keyword token
     TokenType keyword_type = find_keyword(scan_buffer);
@@ -406,8 +413,6 @@ Token read_simple_symbols(Lexer *lexer, char prev_char) {
             return create_token(TOKEN_DOT);
         case ',':
             return create_token(TOKEN_COMMA);
-        case '_':
-            return create_token(TOKEN_UNDERSCORE);
         
         default:
             lexer->err_msg = "Invalid symbol.";
@@ -466,7 +471,7 @@ Token lexer_next_token(Lexer *lexer) {
 
     //CHECK FOR ALPHA CHARACATER FOLLOWED BY ALPHANUM CHARACTERS
     // READ WORD, CHECK IF KEYWORD OR IDENTIFIER, RETURN TOKEN
-    if (isalpha(lexer->current_char)) {
+    if (isalpha(lexer->current_char) || lexer->current_char == '_') {
         return read_keyword_or_id_or_interpolator(lexer);
     }
 
