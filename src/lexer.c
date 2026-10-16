@@ -2,6 +2,12 @@
 //Lexical analysis - Project IFJ+IAL - 16.10.2026
 //
 
+//TODO:
+//non-zero numbers cant start with 0
+//strings can have escaped \"
+//
+
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -141,7 +147,7 @@ void read_line_comment(Lexer* lexer) {
 // Reads and throws away the rest of a block comment (lexer still counts lines)
 void read_block_comment(Lexer* lexer) {
     while (scan_char(lexer) != EOF) {
-        if (lexer->current_char == '*' && scan_char(lexer) == "/") {
+        if (lexer->current_char == '*' && scan_char(lexer) == '/') {
             //read next character to continue seamless reading
             scan_char(lexer); 
             return;
@@ -170,8 +176,10 @@ Token read_indent(Lexer* lexer) {
     return create_token_newline(indent_size);
 }
 
-// Reads digits and up to one dot '.' character. Converts into token.
-// Stops reading at non-digit character, so math can be written like 1+2 instead of 1 + 2.
+// Reads digits in integer, float or exponential form. Converts into token.
+// Can stop reading at non-digit character, so math can be written like 1+2 instead of 1 + 2.
+// @attention Numbers CAN be: 12  12.2  1.  1e2  1e-2  1e+2  1.5e-10  1e-003
+// @attention Numbers CANNOT be: 012  1e0.5  1e.5  1e5.  
 // @return TOKEN_LIT_INT with .int_val assigned or TOKEN_LIT_DOUBLE with .double_val assigned.
 // Returns TOKEN_INVALID if the number is longer than LEXERLIMIT_NUMLIT_LENGTH or has than one dot.
 Token read_number(Lexer* lexer) {
@@ -179,24 +187,61 @@ Token read_number(Lexer* lexer) {
     scan_buffer[0] = lexer->current_char;
     int length = 1;
     int is_double = 0;
+    int is_exponent_form = 0;
+    int is_invalid = 0;
 
-    while (isdigit(scan_char(lexer)) || lexer->current_char == '.') {
+    while (isdigit(scan_char(lexer)) || strchr(".eE_-+", lexer->current_char)) {
         if (length >= LEXERLIMIT_NUMLIT_LENGTH) {
             lexer->err_msg = "Number literal length limit exceeded.";
             return create_token(TOKEN_INVALID);
         }
-        if (lexer->current_char == ".") {
-            if (!is_double) is_double = 1;
-            else {
-                // found something like 123.2.105
-                lexer->err_msg = "Invalid number literal.";
-                return create_token(TOKEN_INVALID);
+
+        //only one dot allowed, and has to be before 'e'
+        if (lexer->current_char == '.') {
+            if (is_double || is_exponent_form) {
+                // found something like 123.2.105 or 12e0.01
+                is_invalid = 1;
+                break;
             }
+            is_double = 1;
         }
+
+        //only one 'e' allowed
+        if (tolower(lexer->current_char) == 'e') {
+            if (is_exponent_form) {
+                // found two 'e's
+                is_invalid = 1;
+                break;
+            }
+            is_exponent_form = 1;
+        }
+
+        //sign only allowed right after 'e'
+        //(sign anywhere else counts as operator between numbers)
+        if (lexer->current_char == '+' || lexer->current_char == '-') {
+            if (tolower(scan_buffer[length-1]) != 'e')  break;
+        }
+
         scan_buffer[length++] = lexer->current_char;
     }
     scan_buffer[length] = '\0';
 
+    //number can't end in '.', 'e' or '_'
+    if (strchr(".eE_", scan_buffer[length-1]))  is_invalid = 1;
+
+    //return invalid if number is invalid
+    if (is_invalid) {
+        lexer->err_msg = "Invalid float number literal.";
+        return create_token(TOKEN_INVALID);
+    }
+
+    //if number has suffix 'd' or 'D', make sure it's gonne be type Double
+    if (tolower(lexer->current_char) == 'd') {
+        is_double = 1;
+        scan_char(lexer); //prime lexer
+    }
+
+    //return int or double token
     if (is_double) return create_token_double(atof(scan_buffer));
     else return create_token_int(atoi(scan_buffer));
 }
@@ -330,7 +375,7 @@ Token read_simple_symbols(Lexer *lexer, char prev_char) {
             if (lexer->current_char == 'm')
                 if (scan_char(lexer) == 'a')
                     if (scan_char(lexer) == 'i')
-                        if (scan_char(lexer) == "n") {
+                        if (scan_char(lexer) == 'n') {
                             //found legitimate @main token
                             scan_char(lexer); //prime next fetch
                             return create_token(TOKEN_MAINFUNC);
@@ -358,21 +403,21 @@ Token read_simple_symbols(Lexer *lexer, char prev_char) {
             return create_token(TOKEN_ASSIGN);  // found =
 
         case '!':
-            if (lexer->current_char == "=") {   // found !=
+            if (lexer->current_char == '=') {   // found !=
                 scan_char(lexer); //prime lexer
                 return create_token(TOKEN_NOTEQUALS);
             }
             return create_token(TOKEN_NOT);     // found !
 
         case '<':
-            if (lexer->current_char == "=") {   // found <=
+            if (lexer->current_char == '=') {   // found <=
                 scan_char(lexer); //prime lexer
                 return create_token(TOKEN_LESSEQUAL);
             }
             return create_token(TOKEN_LESS);    // found <
 
         case '>':
-            if (lexer->current_char == "=") {   // found >=
+            if (lexer->current_char == '=') {   // found >=
                 scan_char(lexer); //prime lexer
                 return create_token(TOKEN_GREATEREQUAL);
             }
@@ -399,7 +444,7 @@ Token read_simple_symbols(Lexer *lexer, char prev_char) {
             return create_token(TOKEN_UNION);    // found |
 
         case '&':
-            if (lexer->current_char == "&") {   // found &&
+            if (lexer->current_char == '&') {   // found &&
                 scan_char(lexer); //prime lexer
                 return create_token(TOKEN_AND); 
             }
