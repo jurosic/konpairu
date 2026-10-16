@@ -183,13 +183,14 @@ Token read_indent(Lexer* lexer) {
 Token read_number(Lexer* lexer) {
     char scan_buffer[LEXERLIMIT_NUMLIT_LENGTH+1];
     scan_buffer[0] = lexer->current_char;
-    int length = 1;
+    int len = 1;
     int is_double = 0;
     int is_exponent_form = 0;
     int is_invalid = 0;
+    int was_underscore = 0;
 
     while (isdigit(scan_char(lexer)) || strchr(".eE_-+", lexer->current_char)) {
-        if (length >= LEXERLIMIT_NUMLIT_LENGTH) {
+        if (len >= LEXERLIMIT_NUMLIT_LENGTH) {
             lexer->err_msg = "Number literal length limit exceeded.";
             return create_token(TOKEN_INVALID);
         }
@@ -217,19 +218,42 @@ Token read_number(Lexer* lexer) {
         //sign only allowed right after 'e'
         //(sign anywhere else counts as operator between numbers)
         if (lexer->current_char == '+' || lexer->current_char == '-') {
-            if (tolower(scan_buffer[length-1]) != 'e')  break;
+            if (tolower(scan_buffer[len-1]) != 'e') {
+                is_invalid = 1;
+                break;
+            }
         }
 
-        scan_buffer[length++] = lexer->current_char;
+        //underscores can repeat and are only allowed to be between two digits
+        if (!isdigit(lexer->current_char)) {
+            if (lexer->current_char == '_') {
+                // if the character before '_' isn't a digit, the literal is invalid
+                if (!isdigit(scan_buffer[len-1])) {
+                    is_invalid = 1;
+                    break;
+                }
+                was_underscore = 1;
+                continue; //skip writing into the scan_buffer, ATOI/ATOF don't accept '_'.
+            // if current isn't a digit, and before is '_', the literal is invalid
+            } else if (was_underscore) {
+                is_invalid = 1;
+                break;
+            }
+        }
+        was_underscore = 0; 
+
+        //write latest char, move on
+        scan_buffer[len++] = lexer->current_char;
     }
-    scan_buffer[length] = '\0';
+    scan_buffer[len] = '\0';
 
     //number can't end in '.', 'e' or '_'
-    if (strchr(".eE_", scan_buffer[length-1]))  is_invalid = 1;
+    if (strchr(".eE", scan_buffer[len-1]) && !was_underscore)
+        is_invalid = 1;
 
     //return invalid if number is invalid
     if (is_invalid) {
-        lexer->err_msg = "Invalid float number literal.";
+        lexer->err_msg = "Invalid number literal.";
         return create_token(TOKEN_INVALID);
     }
 
@@ -240,8 +264,8 @@ Token read_number(Lexer* lexer) {
     }
 
     //return int or double token
-    if (is_double) return create_token_double(atof(scan_buffer));
-    else return create_token_int(atoi(scan_buffer));
+    if (is_double)  return create_token_double(atof(scan_buffer));
+    else  return create_token_int(atoi(scan_buffer));
 }
 
 // Checks if word is keyword from the keywords lookup table.
@@ -304,6 +328,7 @@ Token read_keyword_or_id_or_interpolator(Lexer* lexer) {
 }
 
 // Read stream until quotes, convert to token.
+// Evaluates escaping characters too.
 // Uses strdup to allocate final string from buffer.
 // @return TOKEN_LIT_STR with .str_val assigned.
 // Returns TOKEN_INVALID if string isn't ended or LEXERLIMIT_STRLIT_LENGTH reached.
@@ -336,6 +361,7 @@ Token read_string(Lexer* lexer) {
 }
 
 // Read stream until triple quotes, convert to token.
+// As per documentation, multi-line strings don't evaluate escaping characters.
 // Uses strdup to allocate final string from buffer.
 // @return TOKEN_LIT_STR with .str_val assigned.
 // Returns TOKEN_INVALID if string isn't ended or LEXERLIMIT_STRLIT_LENGTH reached.
@@ -344,7 +370,6 @@ Token read_multiline_string(Lexer* lexer) {
     scan_buffer[0] = scan_char(lexer);
     int length = 1;
     int quote_count = 0;
-    int escaped = 0;
 
     while (length < LEXERLIMIT_STRLIT_LENGTH) {
         if (lexer->current_char == EOF) {
@@ -353,7 +378,7 @@ Token read_multiline_string(Lexer* lexer) {
             return create_token(TOKEN_INVALID);
         }
 
-        if (lexer->current_char == '"' && escaped == 0) {
+        if (lexer->current_char == '"') {
             quote_count++;
             if (quote_count == 3) {
                 // Found the ending 3 quotes of the multiline string
@@ -367,9 +392,6 @@ Token read_multiline_string(Lexer* lexer) {
         }else{
             quote_count = 0;
         }
-
-        //handle escaping properly even though it only matters for \\ and \"
-        escaped = (lexer->current_char == '\\' && escaped == 0);
 
         scan_buffer[length++] = lexer->current_char;
         scan_char(lexer);
