@@ -8,12 +8,14 @@ typedef union {
     int bool_val;           // For boolean literals
     double double_val;      // For float literals
     char *str_val;          // For string literals
-    char *name;             // For identificator names
+    char *name;             // For identifier names
     unsigned int indent_weight; // For new lines
 } TokenValue;
-//WARNING!!
-//TOKENS USING .str_val OR .name NEED TO BE FREED USING free() PROPERLY
-//free(token.str_val) / free(token.name)
+//!!WARNING!!
+// TOKENS USING .str_val OR .name NEED TO BE FREED USING free() PROPERLY
+// free(token.str_val) / free(token.name)
+// This is true for EVERY SINGLE TOKEN_LIT_INT and TOKEN_ID, so treat them like it.
+// The program makes sure every instance of those tokens is an allocated resource.
 
 
 // The core Token struct declaration
@@ -117,7 +119,7 @@ typedef enum {
                         // (the rest is still a string literal)
     
     TOKEN_INVALID,      // Used to report lexeme error to parser. Has no value, but
-                        // lexer object gains .error_message whenever this token is returned.
+                        // lexer object gains .err_msg whenever this token is returned.
     
 } TokenType;
 
