@@ -4,8 +4,6 @@
 
 //TODO:
 //non-zero numbers cant start with 0
-//strings can have escaped \"
-//
 
 
 #include <stdlib.h>
@@ -312,13 +310,23 @@ Token read_keyword_or_id_or_interpolator(Lexer* lexer) {
 Token read_string(Lexer* lexer) {
     char scan_buffer[LEXERLIMIT_STRLIT_LENGTH+1];
     int length = 0;
+    int escaped = 0;
 
-    while (lexer->current_char != '"' && length < LEXERLIMIT_STRLIT_LENGTH) {
+    while (length < LEXERLIMIT_STRLIT_LENGTH) {
+        if (lexer->current_char == '"' && escaped == 0) {
+            scan_char(lexer); //prime lexer
+            break;
+        }
+
         if (lexer->current_char == EOF || lexer->current_char == '\n') {
             // INVALID STRING, wasn't ended correctly
             lexer->err_msg = "Unfinished string literal.";
             return create_token(TOKEN_INVALID);
         }
+
+        //handle escaping properly even though it only matters for \\ and \"
+        escaped = (lexer->current_char == '\\' && escaped == 0);
+
         scan_buffer[length++] = lexer->current_char;
         scan_char(lexer);
     }
@@ -336,6 +344,7 @@ Token read_multiline_string(Lexer* lexer) {
     scan_buffer[0] = scan_char(lexer);
     int length = 1;
     int quote_count = 0;
+    int escaped = 0;
 
     while (length < LEXERLIMIT_STRLIT_LENGTH) {
         if (lexer->current_char == EOF) {
@@ -344,7 +353,7 @@ Token read_multiline_string(Lexer* lexer) {
             return create_token(TOKEN_INVALID);
         }
 
-        if (lexer->current_char == '"') {
+        if (lexer->current_char == '"' && escaped == 0) {
             quote_count++;
             if (quote_count == 3) {
                 // Found the ending 3 quotes of the multiline string
@@ -352,11 +361,15 @@ Token read_multiline_string(Lexer* lexer) {
                 //buffer = [x,x,x,",",", , , ]
                 //              ^--3---
                 length = length-3;
+                scan_char(lexer); //prime lexer
                 break;
             }
         }else{
             quote_count = 0;
         }
+
+        //handle escaping properly even though it only matters for \\ and \"
+        escaped = (lexer->current_char == '\\' && escaped == 0);
 
         scan_buffer[length++] = lexer->current_char;
         scan_char(lexer);
