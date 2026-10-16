@@ -15,6 +15,8 @@ typedef enum {
     LEXERLIMIT_NUMLIT_LENGTH = 256, 
     //string literal length limit
     LEXERLIMIT_STRLIT_LENGTH = 2048,
+    //a reasonable indentation limit, 100 tabs worth of indentation
+    LEXERLIMIT_INDENT_SIZE = 400,
 } Limits;
 
 // Keyword structure for use in searching keywords
@@ -159,7 +161,7 @@ TokenType find_keyword(char* word) {
 Token lexer_next_token(Lexer *lexer) {
 
     // CHECK FOR WHITESPACE AND COMMENTS (also tokenize single '/')
-    // logic is looped for cases like " /* */  /**/  "
+    // logic is looped for cases like " /* */   //    \n  /**/ // "
     while (lexer->current_char == ' ' || lexer->current_char == '/') {
         //check if whitespace, pass whitespace
         read_whitespace(lexer);
@@ -187,10 +189,15 @@ Token lexer_next_token(Lexer *lexer) {
         // if a line is entirely empty, skip it and start counting from 0 again
         while (read_char(lexer) == ' ' || lexer->current_char == '\n') {
             indent_size++;
+            if (indent_size >= LEXERLIMIT_INDENT_SIZE) {
+                lexer->err_msg = "Indentation limit exceeded.";
+                lexer->column = 1; //point at start of indented line
+                return create_token(TOKEN_INVALID);
+            }
             if (lexer->current_char == '\n') indent_size == 0;
         }
-        // if after all those lines is an EOF, just forget the newline token
-        // (remove this if parser wants to check for an empty new line at end of file)
+        // if after all those possible lines is an EOF, just forget the newline token
+        // (remove this 'if' if parser wants to check for an empty new line at end of file)
         if (lexer->current_char != EOF)
             return create_token_newline(indent_size);
     }
@@ -206,9 +213,19 @@ Token lexer_next_token(Lexer *lexer) {
         int length = 1;
         int is_double = 0;
 
-        while (length < LEXERLIMIT_NUMLIT_LENGTH && (isdigit(read_char(lexer)) || lexer->current_char == '.') ) {
-            if (lexer->current_char == ".")
-                is_double = 1;
+        while (isdigit(read_char(lexer)) || lexer->current_char == '.') {
+            if (length >= LEXERLIMIT_NUMLIT_LENGTH) {
+                lexer->err_msg = "Number literal length limit exceeded.";
+                return create_token(TOKEN_INVALID);
+            }
+            if (lexer->current_char == ".") {
+                if (!is_double) is_double = 1;
+                else {
+                    // found something like 123.2.105
+                    lexer->err_msg = "Invalid number literal.";
+                    return create_token(TOKEN_INVALID);
+                }
+            }
             scan_buffer[length++] = lexer->current_char;
         }
         scan_buffer[length] = '\0';
@@ -224,9 +241,14 @@ Token lexer_next_token(Lexer *lexer) {
         scan_buffer[0] = lexer->current_char;
         int length = 1;
 
-        //read text
-        while (length < LEXERLIMIT_ID_LENGTH && (isalnum(read_char(lexer)) || lexer->current_char == '-'))
+        //read text (symbol - seems to be allowed in names in documentation)
+        while (isalnum(read_char(lexer)) || lexer->current_char == '-') {
+            if (length >= LEXERLIMIT_ID_LENGTH){
+                lexer->err_msg = "Identifier length limit exceeded.";
+                return create_token(TOKEN_INVALID);
+            }
             scan_buffer[length++] = lexer->current_char;
+        }
         scan_buffer[length] = '\0';
 
         //check for keyword, return keyword token
@@ -254,9 +276,8 @@ Token lexer_next_token(Lexer *lexer) {
                 while (length < LEXERLIMIT_STRLIT_LENGTH) {
                     if (lexer->current_char != EOF) {
                         // INVALID STRING, wasn't ended correctly
-                        // TODO: error reporting. Maybe returning a special error token and
-                        //  putting an error message in the lexer struct?
-                        length = 0; break; //currently returns empty string
+                        lexer->err_msg = "Unfinished multiline string literal.";
+                        return create_token(TOKEN_INVALID);
                     }
                     if (lexer->current_char == '"') {
                         quote_count++;
@@ -290,8 +311,8 @@ Token lexer_next_token(Lexer *lexer) {
         while (lexer->current_char != '"' && length < LEXERLIMIT_STRLIT_LENGTH) {
             if (lexer->current_char == EOF || lexer->current_char == '\n') {
                 // INVALID STRING, wasn't ended correctly
-                // TODO: error reporting
-                length = 0; break; //currently returns empty string
+                lexer->err_msg = "Unfinished string literal.";
+                return create_token(TOKEN_INVALID);
             }
             scan_buffer[length++] = lexer->current_char;
             read_char(lexer);
@@ -317,9 +338,9 @@ Token lexer_next_token(Lexer *lexer) {
                             read_char(lexer); //prime lexer
                             return create_token(TOKEN_MAINFUNC);
                         }
-            //REPORT ERROR
-            //currently just ignores wrong use of @
-            break;
+            //Wrong use of @
+            lexer->err_msg = "Invalid use of lexeme '@', can only be @main";
+            return create_token(TOKEN_INVALID);
             
         case '+':
             return create_token(TOKEN_ADD);
@@ -368,24 +389,26 @@ Token lexer_next_token(Lexer *lexer) {
             return create_token(TOKEN_BRACK_L);
         case ']':
             return create_token(TOKEN_BRACK_R);
-        case '{':
+      /*case '{':
             return create_token(TOKEN_BRACE_L);
         case '}':
             return create_token(TOKEN_BRACE_R);
-
+      */
         case '|':
             if (lexer->current_char == '|') {   // found ||
-                read_char(lexer);
+                read_char(lexer); //prime lexer
                 return create_token(TOKEN_OR);
             }
-            return create_token(TOKEN_PIPE);    // found |
+            return create_token(TOKEN_UNION);    // found |
 
         case '&':
             if (lexer->current_char == "&") {   // found &&
-                read_char(lexer);
+                read_char(lexer); //prime lexer
                 return create_token(TOKEN_AND); 
             }
-            break; //ERROR invalid symbol just "&"
+            //ERROR invalid symbol just "&"
+            lexer->err_msg = "Invalid lexeme '&'";
+            return create_token(TOKEN_INVALID);
 
         case ':':
             return create_token(TOKEN_COLON);
