@@ -3,7 +3,7 @@
 //
 
 //TODO:
-//non-zero numbers cant start with 0
+//testing
 
 
 #include <stdlib.h>
@@ -263,9 +263,22 @@ Token read_number(Lexer* lexer) {
         scan_char(lexer); //prime lexer
     }
 
-    //return int or double token
-    if (is_double)  return create_token_double(atof(scan_buffer));
-    else  return create_token_int(atoi(scan_buffer));
+    //return int or double token after last check,
+    // check if non-zero numbers dont start with zero (invalid literal)
+    // ideally, i would check this before finishing scanning, but this is simpler
+    if (is_double) {
+        double val = atof(scan_buffer);
+        if (val != 0 || (val == 0 && scan_buffer[0] == '0'))
+            return create_token_double(val);
+    } else {
+        int val = atoi(scan_buffer);
+        if (val != 0 || (val == 0 && scan_buffer[0] == '0'))
+            return create_token_int(val);
+    }
+
+    //number is non-zero but starts with zero, literal is invalid
+    lexer->err_msg = "Invalid number literal: Non-zero literal cannot begin with a zero.";
+    return create_token(TOKEN_INVALID);
 }
 
 // Checks if word is keyword from the keywords lookup table.
