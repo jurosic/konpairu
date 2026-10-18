@@ -64,56 +64,6 @@ static const Keyword keywords[] = {
 };
 
 
-// Return empty token of type token_t
-Token create_token(TokenType token_t) {
-    Token new_token;
-    new_token.type = token_t;
-    return new_token;
-}
-
-// Return token of type TOKEN_LIT_INT with value token_val
-Token create_token_int(int token_val) {
-    Token new_token = create_token(TOKEN_LIT_INT);
-    new_token.value.int_val = token_val;
-    return new_token;
-}
-
-// Return token of type TOKEN_LIT_BOOL with value token_val
-Token create_token_bool(int token_val) {
-    Token new_token = create_token(TOKEN_LIT_BOOL);
-    new_token.value.bool_val = token_val;
-    return new_token;
-}
-
-// Return token of type TOKEN_LIT_DOUBLE with value token_val
-Token create_token_double(double token_val) {
-    Token new_token = create_token(TOKEN_LIT_DOUBLE);
-    new_token.value.double_val = token_val;
-    return new_token;
-}
-
-// Return token of type TOKEN_LIT_STR with value token_strval
-Token create_token_str(char* token_strval) {
-    Token new_token = create_token(TOKEN_LIT_STR);
-    new_token.value.str_val = token_strval;
-    return new_token;
-}
-
-// Return token of type TOKEN_ID with value token_name
-Token create_token_id(char* token_name) {
-    Token new_token = create_token(TOKEN_ID);
-    new_token.value.name = token_name;
-    return new_token;
-}
-
-// Return token of type TOKEN_NEWLINE with value indent_weight
-Token create_token_newline(unsigned int indent_weight) {
-    Token new_token = create_token(TOKEN_NEWLINE);
-    new_token.value.indent_weight = indent_weight;
-    return new_token;
-}
-
-
 // Scan one character into the lexer and update lexer's position in the filestream.
 // @return Scanned character. For convenience. (as type int for EOF)
 int scan_char(Lexer *lexer) {
@@ -168,7 +118,7 @@ Token read_indent(Lexer* lexer) {
             lexer->column = 1; //point at start of indented line
             return create_token(TOKEN_INVALID);
         }
-        if (lexer->current_char == '\n') indent_size == 0;
+        if (lexer->current_char == '\n') indent_size = 0;
     }
 
     return create_token_newline(indent_size);
@@ -370,7 +320,7 @@ Token read_string(Lexer* lexer) {
     }
     scan_buffer[length] = '\0';
 
-    return create_token_id(strdup(scan_buffer));
+    return create_token_str(strdup(scan_buffer));
 }
 
 // Read stream until triple quotes, convert to token.
