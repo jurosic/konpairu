@@ -10,8 +10,6 @@
 typedef struct{
     size_t cap;         //capacity of arr
     size_t size;        //num of tokens
-    //size_t last_idx;  //idx of last token in arr
-                        //remove prolly
     Token* arr;         //dynamic array of tokens
 }TokenBuffer;
 
@@ -49,6 +47,9 @@ void load_next_token(Lexer* lexer, TokenBuffer* buffer);
 //loads Token from lexer to buffer at array[0] and changes size to 1
 //return buffer as NULL if unsuccessful
 void load_first_token(Lexer* lexer, TokenBuffer* buffer);
+
+//sets token as the first token in buffer and changes size to 1
+void set_first_token(TokenBuffer* buffer, Token token);
 
 //TO DO: better name
 //sets the last token as first, and changes size to 1
