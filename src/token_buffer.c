@@ -125,6 +125,7 @@ void load_first_token(Lexer* Lexer, TokenBuffer* buffer){
     //buffer->last_idx = 0;
 }
 
+//sets token as the first token in buffer and changes size to 1
 void set_first_token(TokenBuffer* buffer, Token token){
     if(!buffer) return;
     free_all_token_content(buffer);
