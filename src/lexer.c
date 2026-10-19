@@ -129,7 +129,7 @@ Token read_indent(Lexer* lexer) {
 // @attention Numbers CAN be: 12  12.2  1.  1e2  1e-2  1e+2  1.5e-10  1e-003
 // @attention Numbers CANNOT be: 012  1e0.5  1e.5  1e5.  
 // @return TOKEN_LIT_INT with .int_val assigned or TOKEN_LIT_DOUBLE with .double_val assigned.
-// Returns TOKEN_INVALID if the number is longer than LEXERLIMIT_NUMLIT_LENGTH or has than one dot.
+// Returns TOKEN_INVALID if the number is longer than LEXERLIMIT_NUMLIT_LENGTH or is in wrong format.
 Token read_number(Lexer* lexer) {
     char scan_buffer[LEXERLIMIT_NUMLIT_LENGTH+1];
     scan_buffer[0] = lexer->current_char;
