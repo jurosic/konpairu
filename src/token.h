@@ -11,14 +11,11 @@ typedef union {
     char *name;             // For identifier names
     unsigned int indent_weight; // For new lines
 } TokenValue;
-//!!WARNING!!
-// TOKENS USING .str_val OR .name NEED TO BE FREED USING free() PROPERLY
-// free(token.str_val) / free(token.name)
-// This is true for EVERY SINGLE TOKEN_LIT_INT and TOKEN_ID, so treat them like it.
-// The program makes sure every instance of those tokens is an allocated resource.
 
-
-// The core Token struct declaration
+// The core Token struct
+// @warning EVERY TOKEN SHOULD BE FREED USING token_free().
+// This is because every token of type TOKEN_ID or TOKEN_LIT_STR has malloc'd values.
+// The rest of the tokens do not have any allocated values, they can (but shouldn't) be ignored.
 typedef struct {
     TokenType type;     // Token type
     TokenValue value;   // Extra metadata associated with the token
@@ -122,6 +119,33 @@ typedef enum {
                         // lexer object gains .err_msg whenever this token is returned.
     
 } TokenType;
+
+
+// Returns empty token of TokenType token_t
+Token create_token(TokenType token_t);
+
+// Returns token of TokenType TOKEN_LIT_INT with value token_val
+Token create_token_int(int token_val);
+
+// Returns token of TokenType TOKEN_LIT_BOOL with value .bool_val = token_val
+// Function doesn't check if token_val is in range <0,1>.
+Token create_token_bool(int token_val);
+
+// Returns token of TokenType TOKEN_LIT_DOUBLE with value .double_val = token_val
+Token create_token_double(double token_val);
+
+// Returns token of TokenType TOKEN_LIT_STR with value .str_val = token_strval
+Token create_token_str(char* token_strval);
+
+// Returns token of TokenType TOKEN_ID with value .name = token_name
+Token create_token_id(char* token_name);
+
+// Returns token of TokenType TOKEN_NEWLINE with value .indent_weight = indent_weight
+Token create_token_newline(unsigned int indent_weight);
+
+// Free any token from memory, if it has a freeable TokenValue.
+// Does nothing for every token that isn't of TokenType TOKEN_ID or TOKEN_LIT_STR.
+void token_free(Token token);
 
 
 #endif // TOKEN_H
