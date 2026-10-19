@@ -33,8 +33,8 @@ TokenBuffer* token_buffer_init(size_t cap);
 //changes buffer capacity
 //doubles buffer size: if its full
 //halfes buffer size:  if its 1/4 full
-//                     its capacity is more than 8
-//                     its size is more than 2
+//                     and its capacity is more than 8
+//                     and its size is more than 2
 //returns as NULL if unsuccessful
 void token_buffer_cap(TokenBuffer* buffer);    
 
