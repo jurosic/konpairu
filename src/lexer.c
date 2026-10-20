@@ -492,14 +492,37 @@ Token lexer_next_token(Lexer *lexer) {
             }
         }
     }
+    // if()
+    //      fisdjfisdif;        iffff
+
 
     //CHECK FOR NEWLINE, READ INDENT WEIGHT, RETURN TOKEN
-    if (lexer->current_char == '\n') {
-        Token indent_token = read_indent(lexer);
+    // also takes care of lines separated by ;
+    if (lexer->current_char == '\n' || lexer->current_char == ';') {
+        Token indent_token;
+        static unsigned int last_indent_weight = 0;
+
+        if (lexer->current_char == ';') {
+            // in case of ';', eliminate whitespace first
+            read_whitespace(lexer);
+            // if space after ; is empty, ignore it (same as an empty line)
+            if (lexer->current_char != '\n' && lexer->current_char != EOF) {
+                // otherwise, create a newline token and continue next fetch as
+                // if the next content was on a new line
+                // (the indent_weight of this artificial new line is the same
+                //  as the last indent weight)
+                indent_token = create_token_newline(last_indent_weight);
+            }
+        } else {
+            indent_token = read_indent(lexer);
+            last_indent_weight = indent_token.value.indent_weight;
+        }
+
         // read_indent throws away empty lines, so if after all those lines there is an EOF,
         // just forget the newline token
-        // (remove this 'if' if parser wants to check for an empty new line at end of file)
-        if (lexer->current_char != EOF)
+        // (remove the check for EOF if parser wants to check for an empty line at end of file)
+        // (the '\n' check is for when a ';' is followed by emptiness until end of line)
+        if (lexer->current_char != EOF && lexer->current_char != '\n')
             return indent_token;
     }
 
