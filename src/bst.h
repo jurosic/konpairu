@@ -24,14 +24,14 @@ typedef struct {
 
 typedef struct Node bst_node_t;
 
-// Creates original node for BST and sets it to NULL.
-void bst_init(bst_node_t **origin);
+// Creates root node for BST and sets it to NULL.
+void bst_init(bst_node_t **root);
 
 // Creates new node in BST 
-void bst_insert(bst_node_t **origin, char *key, VariantValue value);
+int bst_insert(bst_node_t **root, char *key, VariantValue value);
 
 // Returns value of key stored in BST
-VariantValue *bst_search(bst_node_t *origin, char *key);
+VariantValue *bst_search(bst_node_t *root, char *key);
 
 // Frees BST from memory
-void bst_destroy(bst_node_t **origin);
+void bst_destroy(bst_node_t **root);
