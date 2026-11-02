@@ -61,31 +61,53 @@ void rotate_left(bst_node_t **node) {
     *node = y;
 }
 
+// Creates new node in bst and copies assigned values
+// Returns error 99 if malloc operation fails
 int create_node(bst_node_t **node, char *key, VariantValue value){
     // Make space for new node
     *node = malloc(sizeof(bst_node_t));
-    if(*node == NULL) return -1;
+    if(*node == NULL) return 99;
 
     (*node)->key = malloc(sizeof(char) * (strlen(key) + 1));
     if((*node)->key == NULL){
         free(*node);
         *node = NULL;
-        return -1;
+        return 99;
     }
 
     // Assign values
-    (*node)->value = value;
     (*node)->height = 0;
     strcpy((*node)->key, key);
     (*node)->branch_L = NULL;
     (*node)->branch_R = NULL;
+    (*node)->value = value;
+
+    // Special copy for string
+    if (value.type == TYPE_STRING && value.value.string_val != NULL) {
+        char *str_copy = malloc(strlen(value.value.string_val) + 1);
+        if (str_copy != NULL) {
+            strcpy(str_copy, value.value.string_val);
+            (*node)->value.value.string_val = str_copy;
+        } else {
+            // Malloc failed
+            free((*node)->key);
+            (*node)->key = NULL;
+
+            free(*node);
+            *node = NULL;
+
+            return 99;
+        }
+    }
 
     return 0;
 }
 
-// Creates new node in BST(returns NULL if operation failed)
+// Creates new node in BST
+// Returns error 4 if node alredy exists
+// Returns error 99 if malloc operation failed
 int bst_insert(bst_node_t **node, char *key, VariantValue value){
-    if(key == NULL || node == NULL) return -1; // Check if parameters are correct.
+    if(key == NULL || node == NULL) return 99; // Check if parameters are correct.
 
     int err = 0;
 
@@ -99,7 +121,7 @@ int bst_insert(bst_node_t **node, char *key, VariantValue value){
     } else if (strcmp(key, (*node)->key) > 0) {
         err = bst_insert(&(*node)->branch_R, key, value);
     } else {
-        return -1; // Node already exists(fail)
+        return 4; // Node already exists(fail)
     }
 
     if (err != 0) return err;

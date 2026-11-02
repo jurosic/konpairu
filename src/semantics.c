@@ -33,6 +33,7 @@ int sem_enter_scope(){
     bst_init(&(new_scope->tree));
     new_scope->outer = current_scope;
     current_scope = new_scope;
+
     return 0;
 }
 
@@ -55,13 +56,6 @@ void sem_dispose(){
     bst_destroy(&global_symtable);
 }
 
-// Called when parser reads: val x: Int = 5 (or var x = 5)
-// Checks if 'key' already exists in the CURRENT scope (Error 4).
-// If not, inserts it into the top AVL tree.
-int sem_define_variable(char *key, DataType type, bool is_mutable){
-
-}
-
 VariantValue* sem_get_variable(char *key){
     Scope *scope = current_scope;
 
@@ -74,6 +68,13 @@ VariantValue* sem_get_variable(char *key){
     }
 
     return NULL;
+}
+
+// Called when parser reads: val x: Int = 5 (or var x = 5)
+// Checks if 'key' already exists in the CURRENT scope (Error 4).
+// If not, inserts it into the top AVL tree.
+int sem_define_variable(char *key, VariantValue val, bool is_mutable){
+    return bst_insert(&(current_scope->tree), key, val);
 }
 
 // Called when a variable is used in an expression (e.g., y = x + 2).
@@ -153,7 +154,15 @@ int sem_eval_binary_op(DataType type1, DataType type2, TokenType operator, DataT
 
 // (Optional) Same as above, but for unary operators like -x or !x
 int sem_eval_unary_op(DataType type, TokenType operator, DataType *out_result_type){
+    if(operator == TOKEN_SUB){
+        if(is_numeric(type)){
+            *out_result_type = type;
+            return 0;
+        }
+        return 6;
+    }
 
+    return 99;
 }
 
 // Called when parser reads: def foo(x: Int): String
