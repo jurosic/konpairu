@@ -1,3 +1,6 @@
+#ifndef SEMANTICS_H
+#define SEMANTICS_H
+
 #include "bst.h"
 #include "token.h"
 #include <stdbool.h>
@@ -19,7 +22,7 @@ void sem_dispose();
 // Called when parser reads: val x: Int = 5 (or var x = 5)
 // Checks if 'key' already exists in the CURRENT scope (Error 4).
 // If not, inserts it into the top AVL tree.
-int sem_define_variable(char *key, DataType type, bool is_mutable);
+int sem_define_variable(char *key, VariantValue val, bool is_mutable);
 
 // Called when a variable is used in an expression (e.g., y = x + 2).
 // Searches from the local scope up to the global scope.
@@ -58,3 +61,5 @@ int sem_check_function_call(char *key, int arg_count, DataType *arg_types, DataT
 // Compares 'expr_type' with the expected return type of the CURRENTLY parsed function.
 // Returns Error 6 on type mismatch or if return is used where it shouldn't be.
 int sem_check_return(DataType current_func_expected_type, DataType expr_type);
+
+#endif

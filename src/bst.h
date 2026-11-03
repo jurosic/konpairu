@@ -1,3 +1,6 @@
+#ifndef BST_H
+#define BST_H
+
 #include <stdbool.h>
 
 // Data types for IFJ26
@@ -35,3 +38,5 @@ VariantValue *bst_search(bst_node_t *root, char *key);
 
 // Frees BST from memory
 void bst_destroy(bst_node_t **root);
+
+#endif
