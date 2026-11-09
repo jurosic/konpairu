@@ -113,7 +113,10 @@ int sem_check_assignment(char *key, DataType expr_type){
 // Handles IFJ26 implicit conversion (Int -> Double).
 // Returns Error 6 if incompatible (e.g., Int + String).
 // If successful, writes the resulting type into *out_result_type.
-int sem_eval_binary_op(DataType type1, DataType type2, TokenType operator, DataType *out_result_type){
+int sem_eval_binary_op(DataType type1, DataType type2, bool *convert_left, bool *convert_right, TokenType operator, DataType *out_result_type){
+    if (convert_left) *convert_left = false;
+    if (convert_right) *convert_right = false;
+
     switch(operator){
         case TOKEN_ADD:
             if(type1 == TYPE_STRING && type2 == TYPE_STRING){
@@ -128,6 +131,9 @@ int sem_eval_binary_op(DataType type1, DataType type2, TokenType operator, DataT
                 *out_result_type = TYPE_INT;
 
                 if(type1 == TYPE_DOUBLE || type2 == TYPE_DOUBLE) *out_result_type = TYPE_DOUBLE;
+                // Conversion check
+                if (type1 == TYPE_INT && convert_left) *convert_left = true;
+                if (type2 == TYPE_INT && convert_right) *convert_right = true;
 
                 return 0;
             }
@@ -143,16 +149,21 @@ int sem_eval_binary_op(DataType type1, DataType type2, TokenType operator, DataT
         case TOKEN_GREATER:     // fallthrough
         case TOKEN_LESSEQUAL:   // fallthrough
         case TOKEN_GREATEREQUAL:
-            if((type1 == TYPE_STRING && type2 == TYPE_STRING) || (is_numeric(type1) && is_numeric(type2))){
+            if((type1 == TYPE_STRING && type2 == TYPE_STRING) || (is_numeric(type1) && is_numeric(type2) || (type1 == TYPE_BOOLEAN && type2 == TYPE_BOOLEAN)) ){
                 *out_result_type = TYPE_BOOLEAN;
+
+                // Conversion check
+                if(type1 == TYPE_DOUBLE || type2 == TYPE_DOUBLE) {
+                    if (type1 == TYPE_INT && convert_left) *convert_left = true;
+                    if (type2 == TYPE_INT && convert_right) *convert_right = true;
+                }
+
                 return 0;
             }
             return 6;
         default:
             return 99;
     }
-    // TO DO: type conversion int -> double
-    //        boolean
 }
 
 // (Optional) Same as above, but for unary operators like -x or !x

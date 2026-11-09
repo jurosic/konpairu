@@ -19,11 +19,11 @@ typedef enum {
 
 // Struct containing all data types
 typedef struct {
-    SymbolType symbol_type; // 
-    DataType type;          // Stores type of symbol
+    SymbolType symbol_type; // Says if symbol is variable or function
+    DataType type;          // Stores symbol type
     
     union{
-    // Variable data
+        // Variable data
         struct {
             bool is_mutable;       // Says if value is mutable(var or val)
         } var_data;
