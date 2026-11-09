@@ -22,7 +22,7 @@ void sem_dispose();
 // Called when parser reads: val x: Int = 5 (or var x = 5)
 // Checks if 'key' already exists in the CURRENT scope (Error 4).
 // If not, inserts it into the top AVL tree.
-int sem_define_variable(char *key, VariantValue val, bool is_mutable);
+int sem_define_variable(char *key, SymbolData val, bool is_mutable);
 
 // Called when a variable is used in an expression (e.g., y = x + 2).
 // Searches from the local scope up to the global scope.

@@ -5,7 +5,7 @@
 // Stroct for nodes in BST
 struct Node {
     char *key;              // Identifier of variable
-    VariantValue value;     // Variable value and data type
+    SymbolData value;       // Symbol info
     int height;             // Hight of node in bst
     
     struct Node *branch_L;  // For lower key value than parent node
@@ -63,7 +63,7 @@ void rotate_left(bst_node_t **node) {
 
 // Creates new node in bst and copies assigned values
 // Returns error 99 if malloc operation fails
-int create_node(bst_node_t **node, char *key, VariantValue value){
+int create_node(bst_node_t **node, char *key, SymbolData value){
     // Make space for new node
     *node = malloc(sizeof(bst_node_t));
     if(*node == NULL) return 99;
@@ -82,13 +82,10 @@ int create_node(bst_node_t **node, char *key, VariantValue value){
     (*node)->branch_R = NULL;
     (*node)->value = value;
 
-    // Special copy for string
-    if (value.type == TYPE_STRING && value.value.string_val != NULL) {
-        char *str_copy = malloc(strlen(value.value.string_val) + 1);
-        if (str_copy != NULL) {
-            strcpy(str_copy, value.value.string_val);
-            (*node)->value.value.string_val = str_copy;
-        } else {
+    // Copy for array of function parameters
+    if (value.symbol_type == SYMBOL_FUNC && value.data.func_data.param_count != 0) {
+        DataType *type_copy = malloc(sizeof(DataType) * value.data.func_data.param_count);
+        if (type_copy == NULL) {
             // Malloc failed
             free((*node)->key);
             (*node)->key = NULL;
@@ -97,6 +94,10 @@ int create_node(bst_node_t **node, char *key, VariantValue value){
             *node = NULL;
 
             return 99;
+        } 
+        
+        for(int i = 0; i < value.data.func_data.param_count; i++){
+            (*node)->value.data.func_data.param_types[i] = value.data.func_data.param_types[i];
         }
     }
 
@@ -106,7 +107,7 @@ int create_node(bst_node_t **node, char *key, VariantValue value){
 // Creates new node in BST
 // Returns error 4 if node alredy exists
 // Returns error 99 if malloc operation failed
-int bst_insert(bst_node_t **node, char *key, VariantValue value){
+int bst_insert(bst_node_t **node, char *key, SymbolData value){
     if(key == NULL || node == NULL) return 99; // Check if parameters are correct.
 
     int err = 0;
@@ -151,7 +152,7 @@ int bst_insert(bst_node_t **node, char *key, VariantValue value){
 }
 
 // Returns value of key stored in BST
-VariantValue *bst_search(bst_node_t *node, char *key){
+SymbolData *bst_search(bst_node_t *node, char *key){
     if(node == NULL || key == NULL) return NULL; // Check if parameters are correct.
 
     // Find and return value of key
@@ -175,13 +176,15 @@ void bst_destroy(bst_node_t **node){
     bst_destroy(&((*node)->branch_L));
     bst_destroy(&((*node)->branch_R));
 
-    // Free dynamic values if they are assigned
-    if ((*node)->value.type == TYPE_STRING) {
-        free((*node)->value.value.string_val);
+    // Free array of function parameter types
+    if((*node)->value.symbol_type == SYMBOL_FUNC && (*node)->value.data.func_data.param_count != 0){
+        free((*node)->value.data.func_data.param_types);
+        (*node)->value.data.func_data.param_types = NULL;
     }
 
     // Free node from memory
     free((*node)->key);
+    (*node)->key = NULL;
     free(*node);
     *node = NULL;
 }

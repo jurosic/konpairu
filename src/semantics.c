@@ -56,11 +56,11 @@ void sem_dispose(){
     bst_destroy(&global_symtable);
 }
 
-VariantValue* sem_get_variable(char *key){
+SymbolData* sem_get_variable(char *key){
     Scope *scope = current_scope;
 
     while (scope != NULL) {
-        VariantValue *val = bst_search(scope->tree, key);
+        SymbolData *val = bst_search(scope->tree, key);
         if (val != NULL) {
             return val; // Found in the closest enclosing scope
         }
@@ -73,7 +73,10 @@ VariantValue* sem_get_variable(char *key){
 // Called when parser reads: val x: Int = 5 (or var x = 5)
 // Checks if 'key' already exists in the CURRENT scope (Error 4).
 // If not, inserts it into the top AVL tree.
-int sem_define_variable(char *key, VariantValue val, bool is_mutable){
+int sem_define_variable(char *key, SymbolData val, bool is_mutable){
+    val.symbol_type = SYMBOL_VAR;
+    val.data.var_data.is_mutable = is_mutable;
+
     return bst_insert(&(current_scope->tree), key, val);
 }
 
@@ -81,7 +84,7 @@ int sem_define_variable(char *key, VariantValue val, bool is_mutable){
 // Searches from the local scope up to the global scope.
 // Returns Error 3 if not found. If found, writes its type into *out_type.
 int sem_get_variable_type(char *key, DataType *out_type){
-    VariantValue *val = sem_get_variable(key);
+    SymbolData *val = sem_get_variable(key);
 
     if(val != NULL) {
         *out_type = val->type;
@@ -96,11 +99,11 @@ int sem_get_variable_type(char *key, DataType *out_type){
 // 2. Checks if 'x' is a 'val' (Error 7 - cannot modify constant).
 // 3. Checks if 'expr_type' matches the variable's type (Error 6 - type mismatch).
 int sem_check_assignment(char *key, DataType expr_type){
-    VariantValue *val = sem_get_variable(key);
+    SymbolData *val = sem_get_variable(key);
 
     if(val == NULL) return 3;
-    if(!val->is_mutable) return 7;
-    if(val->type == expr_type) return 6;
+    if(!val->data.var_data.is_mutable) return 7;
+    if(val->type != expr_type) return 6;
 
     return 0;
 }
@@ -169,7 +172,16 @@ int sem_eval_unary_op(DataType type, TokenType operator, DataType *out_result_ty
 // Checks for redefinition (Error 4).
 // Inserts function signature (key, param count, param types, return type) into the GLOBAL tree.
 int sem_define_function(char *key, DataType return_type, int param_count, DataType *param_types){
+    if(current_scope != NULL) return 99; // Error, functions should be defined only in global scope(parser should catch)
 
+    // Move data to one variable
+    SymbolData symbol_data;
+    symbol_data.symbol_type = SYMBOL_FUNC;
+    symbol_data.type = return_type;
+    symbol_data.data.func_data.param_count = param_count;
+    symbol_data.data.func_data.param_types = param_types;
+    
+    return bst_insert(&(global_symtable), key, symbol_data);
 }
 
 // Called when parser reads: foo(10, "hello")
@@ -178,7 +190,16 @@ int sem_define_function(char *key, DataType return_type, int param_count, DataTy
 // 3. Checks if arg_types match the defined param types (Error 5).
 // If successful, writes the function's return type into *out_return_type.
 int sem_check_function_call(char *key, int arg_count, DataType *arg_types, DataType *out_return_type){
+    SymbolData *func_data = bst_search(&(global_symtable), key);
 
+    if(func_data == NULL) return 3;
+    if(func_data->data.func_data.param_count != arg_count) return 5;
+    for(int i = 0; i < func_data->data.func_data.param_count; i++){
+        if(func_data->data.func_data.param_types[i] != arg_types[i]) return 5;
+    }
+
+    out_return_type = func_data->type;
+    return 0;
 }
 
 // Called when parser reads: return expr
