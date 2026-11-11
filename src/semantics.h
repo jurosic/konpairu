@@ -10,7 +10,7 @@ void sem_init();
 
 // Called by the parser every time it encounters 'if', 'while', or a new function.
 // Pushes a new empty AVL tree onto the scope stack.
-void sem_enter_scope();
+int sem_enter_scope();
 
 // Called by the parser at the end of a block.
 // Destroys the top AVL tree (discarding local variables) and pops the stack.

@@ -12,19 +12,6 @@ typedef union {
     //void *custom_val;     // Generic pointer for any custom value
 } TokenValue;
 
-
-// The core Token struct declaration
-typedef struct {
-    TokenType type;     // Token type
-    TokenValue value;   // Extra metadata associated with the token
-                        // (this is unused for all tokens except literals, names and indents)
-    
-    // optional metadata for compile-time error messages
-    //int line;           
-    //int column;         
-} Token;
-
-
 // Enum of all possible token types
 typedef enum {
     // File reading
@@ -98,6 +85,17 @@ typedef enum {
     TOKEN_INTERPOLATOR, // s"Interpolated string ${1+1}"   //EXTENSION (only the s)
     
 } TokenType;
+
+// The core Token struct declaration
+typedef struct {
+    TokenType type;     // Token type
+    TokenValue value;   // Extra metadata associated with the token
+                        // (this is unused for all tokens except literals, names and indents)
+    
+    // optional metadata for compile-time error messages
+    //int line;           
+    //int column;         
+} Token;
 
 
 #endif // TOKEN_H
