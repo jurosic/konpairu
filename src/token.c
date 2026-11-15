@@ -49,7 +49,7 @@ Token create_token_newline(unsigned int indent_weight) {
     return new_token;
 }
 
-Token token_free(Token token) {
+void token_free(Token token) {
     if (token.type == TOKEN_ID)
         free(token.value.name);
         

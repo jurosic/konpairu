@@ -258,7 +258,7 @@ Token read_keyword_or_id_or_interpolator(Lexer* lexer) {
     int length = 1;
 
     //read text (symbols - _ seem to be allowed in names in documentation)
-    while (isalnum(scan_char(lexer)) || lexer->current_char == '-' || lexer->current_char == "_") {
+    while (isalnum(scan_char(lexer)) || lexer->current_char == '-' || lexer->current_char == '_') {
         if (length >= LEXERLIMIT_ID_LENGTH){
             lexer->err_msg = "Identifier length limit exceeded.";
             return create_token(TOKEN_INVALID);

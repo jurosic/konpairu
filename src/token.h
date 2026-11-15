@@ -12,21 +12,6 @@ typedef union {
     unsigned int indent_weight; // For new lines
 } TokenValue;
 
-// The core Token struct
-// @warning EVERY TOKEN SHOULD BE FREED USING token_free().
-// This is because every token of type TOKEN_ID or TOKEN_LIT_STR has malloc'd values.
-// The rest of the tokens do not have any allocated values, they can (but shouldn't) be ignored.
-typedef struct {
-    TokenType type;     // Token type
-    TokenValue value;   // Extra metadata associated with the token
-                        // (this is unused for all tokens except literals, names and indents)
-    
-    // optional metadata for compile-time error messages
-    //int line;           
-    //int column;         
-} Token;
-
-
 // Enum of all possible token types
 typedef enum {
     // File reading
@@ -119,6 +104,20 @@ typedef enum {
                         // lexer object gains .err_msg whenever this token is returned.
     
 } TokenType;
+
+// The core Token struct
+// @warning EVERY TOKEN SHOULD BE FREED USING token_free().
+// This is because every token of type TOKEN_ID or TOKEN_LIT_STR has malloc'd values.
+// The rest of the tokens do not have any allocated values, they can (but shouldn't) be ignored.
+typedef struct {
+    TokenType type;     // Token type
+    TokenValue value;   // Extra metadata associated with the token
+                        // (this is unused for all tokens except literals, names and indents)
+    
+    // optional metadata for compile-time error messages
+    //int line;           
+    //int column;         
+} Token;
 
 
 // Returns empty token of TokenType token_t
