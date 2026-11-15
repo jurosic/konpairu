@@ -1,3 +1,6 @@
+#ifndef BST_H
+#define BST_H
+
 #include <stdbool.h>
 
 // Data types for IFJ26
@@ -9,18 +12,29 @@ typedef enum {
     TYPE_BOOLEAN    // EXTENSION
 } DataType;
 
+typedef enum {
+    SYMBOL_VAR,     // when storing variable
+    SYMBOL_FUNC     // when storing function
+} SymbolType;
+
 // Struct containing all data types
 typedef struct {
-    DataType type;      // Stores type in which value is stored
-    bool is_mutable;        // Says if value is mutable(var or val)
+    SymbolType symbol_type; // Says if symbol is variable or function
+    DataType type;          // Stores symbol type
     
-    union {
-        int int_val;           // For integer literals
-        double double_val;     // For double literals
-        char *string_val;      // For string literals
-        bool bool_val;         // For boolean literals
-    } value;
-} VariantValue;
+    union{
+        // Variable data
+        struct {
+            bool is_mutable;       // Says if value is mutable(var or val)
+        } var_data;
+        
+        // Function data
+        struct {
+            int param_count;       // Number of function parameters
+            DataType *param_types; // Array of parameter types
+        } func_data;
+    } data;
+} SymbolData;
 
 typedef struct Node bst_node_t;
 
@@ -28,10 +42,14 @@ typedef struct Node bst_node_t;
 void bst_init(bst_node_t **root);
 
 // Creates new node in BST 
-int bst_insert(bst_node_t **root, char *key, VariantValue value);
+// Returns error 4 if node alredy exists
+// Returns error 99 if malloc operation failed
+int bst_insert(bst_node_t **root, char *key, SymbolData value);
 
 // Returns value of key stored in BST
-VariantValue *bst_search(bst_node_t *root, char *key);
+SymbolData *bst_search(bst_node_t *root, char *key);
 
 // Frees BST from memory
 void bst_destroy(bst_node_t **root);
+
+#endif
