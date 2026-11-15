@@ -126,8 +126,8 @@ Token read_indent(Lexer* lexer) {
 
 // Reads digits in integer, float or exponential form. Converts into token.
 // Can stop reading at non-digit character, so math can be written like 1+2 instead of 1 + 2.
-// @attention Numbers CAN be: 12  12.2  1.  1e2  1e-2  1e+2  1.5e-10  1e-003
-// @attention Numbers CANNOT be: 012  1e0.5  1e.5  1e5.  
+// @attention Numbers CAN be: 12 12_000  12.2  1.  1e2  1e-2  1e+2  1.5e-10  1e-003
+// @attention Numbers CANNOT be: 012 1.2.2 1e0.5  1e.5  1e5.  
 // @return TOKEN_LIT_INT with .int_val assigned or TOKEN_LIT_DOUBLE with .double_val assigned.
 // Returns TOKEN_INVALID if the number is longer than LEXERLIMIT_NUMLIT_LENGTH or is in wrong format.
 Token read_number(Lexer* lexer) {
@@ -197,8 +197,8 @@ Token read_number(Lexer* lexer) {
     }
     scan_buffer[len] = '\0';
 
-    //number can't end in '.', 'e' or '_'
-    if (strchr(".eE", scan_buffer[len-1]) && !was_underscore)
+    //number can't end in 'e' or '_'
+    if (strchr("eE", scan_buffer[len-1]) && !was_underscore)
         is_invalid = 1;
 
     //return invalid if number is invalid
@@ -216,13 +216,13 @@ Token read_number(Lexer* lexer) {
     //return int or double token after last check,
     // check if non-zero numbers dont start with zero (invalid literal)
     // ideally, i would check this before finishing scanning, but this is simpler
-    if (is_double) {
+    if (is_double || is_exponent_form) {
         double val = atof(scan_buffer);
-        if (val != 0 || (val == 0 && scan_buffer[0] == '0'))
+        if ((val != 0 && scan_buffer[0] != '0') || val == 0)
             return create_token_double(val);
     } else {
         int val = atoi(scan_buffer);
-        if (val != 0 || (val == 0 && scan_buffer[0] == '0'))
+        if ((val != 0 && scan_buffer[0] != '0') || val == 0)
             return create_token_int(val);
     }
 
