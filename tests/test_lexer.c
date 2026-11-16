@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include "../src/lexer.h"
-#include "../src/token.h"
+#include "lexer.h"
+#include "token.h"
 
 // helper function to make lexer from string
 static Lexer* init_lexer_string(const char* str) {
