@@ -1,3 +1,7 @@
+//text_lexer.c - Lexer unit testing
+//Project IFJ+IAL - 16.11.2026
+//credit: Samuel Bončo
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

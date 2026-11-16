@@ -1,6 +1,6 @@
-//token.c
-//Token manipulation functions - Project IFJ+IAL - 16.10.2026
-//
+//token.c - Token manipulation functions
+//Project IFJ+IAL - 16.10.2026
+//credit: Samuel Bončo
 
 
 #include <stdlib.h>

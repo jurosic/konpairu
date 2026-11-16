@@ -1,9 +1,6 @@
-//lexer.c
-//Lexical analysis - Project IFJ+IAL - 16.10.2026
-//
-
-//TODO:
-//testing
+//lexer.c - Lexical analysis
+//Project IFJ+IAL - 16.10.2026
+//credit: Samuel Bončo
 
 
 #include <stdlib.h>
