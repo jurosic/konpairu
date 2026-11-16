@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "semantics.h" // Your semantics header
-#include "bst.h"       // Your BST header
+#include "semantics.h" 
+#include "bst.h"
 #include "token.h"
 
 // A simple macro for testing. If the condition fails, it prints an error.
