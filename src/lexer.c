@@ -10,18 +10,6 @@
 #include "token.h"
 #include "lexer.h"
 
-//Safety limits for reading potentially infinite patterns
-typedef enum {
-    //APPLIED FOR ALL: (limits in characters, not counting \0)
-    //identifier/keyword length limit 
-    LEXERLIMIT_ID_LENGTH = 256,
-    //num literal length limit, used for floats and ints
-    LEXERLIMIT_NUMLIT_LENGTH = 256, 
-    //string literal length limit
-    LEXERLIMIT_STRLIT_LENGTH = 2048,
-    //a reasonable indentation limit, 100 tabs worth of indentation
-    LEXERLIMIT_INDENT_SIZE = 400,
-} Limits;
 
 // Keyword structure for elements in lookup table
 typedef struct {
