@@ -331,9 +331,10 @@ Token read_string(Lexer* lexer) {
 // Returns TOKEN_INVALID if string isn't ended or LEXERLIMIT_STRLIT_LENGTH reached.
 Token read_multiline_string(Lexer* lexer) {
     char scan_buffer[LEXERLIMIT_STRLIT_LENGTH+1];
-    scan_buffer[0] = scan_char(lexer);
-    int length = 1;
+    int length = 0;
     int quote_count = 0;
+
+    scan_char(lexer); //start off the first character
 
     while (length < LEXERLIMIT_STRLIT_LENGTH) {
         if (lexer->current_char == EOF) {
@@ -348,8 +349,8 @@ Token read_multiline_string(Lexer* lexer) {
                 // Found the ending 3 quotes of the multiline string
                 // backtrack buffer so '\0' ends string correctly.
                 //buffer = [x,x,x,",",", , , ]
-                //              ^--3---
-                length = length-3;
+                //              ^-2--
+                length = length-2;
                 scan_char(lexer); //prime lexer
                 break;
             }

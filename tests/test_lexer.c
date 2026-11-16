@@ -143,9 +143,35 @@ void test_indents(void) {
     t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
     assert(t.value.indent_weight == 1);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_VAL);
-    
+
     t = lexer_next_token(lexer); assert(t.type == TOKEN_EOF);
 
+    free_lexer_string(lexer);
+    printf("PASSED: test_indents\n");
+}
+
+void test_strings(void) {
+    Token t;
+    Lexer *lexer = init_lexer_string(
+        "\"normalstring\"  "
+        "\"\"\"multiline\nstring\"\"\"  "
+        "s\"nicestring\"  "
+        "s\"\"\"multinice\"\"\""
+    );
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
+    assert(strcmp(t.value.str_val, "normalstring") == 0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
+    printf("\n\n -%s- \n\n", t.value.str_val);
+    assert(strcmp(t.value.str_val, "multiline\nstring") == 0);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_INTERPOLATOR);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
+    assert(strcmp(t.value.str_val, "nicestring") == 0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_INTERPOLATOR);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
+    assert(strcmp(t.value.str_val, "multinice") == 0);
+    
     free_lexer_string(lexer);
     printf("PASSED: test_indents\n");
 }
@@ -184,12 +210,20 @@ void test_invalid_numbers(void) {
 
 void test_unfinished_string(void) {
     Lexer *lexer = init_lexer_string("\"hello world");
-
-    Token t = lexer_next_token(lexer);
-    assert(t.type == TOKEN_INVALID);
+    Token t = lexer_next_token(lexer); assert(t.type == TOKEN_INVALID);
     assert(lexer->err_msg != NULL);
-
     free_lexer_string(lexer);
+
+    lexer = init_lexer_string("\"\"\"hello world");
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_INVALID);
+    assert(lexer->err_msg != NULL);
+    free_lexer_string(lexer);
+
+    lexer = init_lexer_string("\"\"\"hello world\"\"");
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_INVALID);
+    assert(lexer->err_msg != NULL);
+    free_lexer_string(lexer);
+
     printf("PASSED: test_unfinished_string\n");
 }
 
@@ -239,7 +273,8 @@ int main(void) {
     test_keywords_and_identifiers();
     test_main_annotation();
     test_numbers();
-    test_indents(); //unfinished
+    test_indents();
+    test_strings();
     
     test_invalid_numbers();
     test_unfinished_string();
