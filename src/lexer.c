@@ -77,7 +77,7 @@ int scan_char(Lexer *lexer) {
     return lexer->current_char;
 }
 
-// Reads and throws away whitespace
+// Sets lexer to the first character from it's current position than isn't whitespace
 void read_whitespace(Lexer* lexer) {
     while (lexer->current_char == ' ')
         scan_char(lexer);
@@ -102,13 +102,17 @@ void read_block_comment(Lexer* lexer) {
 }
 
 // Reads the indent count of the next non-empty line.
+// Skips empty lines too.
+// Semicolons at the beginning of a line are skipped and don't contribute to a line's indent weight.
 // @return TOKEN_NEWLINE with .indent_weight assigned.
 // Returns TOKEN_INVALID if LEXERLIMIT_INDENT_SIZE reached.
 Token read_indent(Lexer* lexer) {
     unsigned int indent_size = 0;
     // count the indent_weight by counting spaces from start of a new line
     // if a line is entirely empty, skip it and start counting from 0 again
-    while (scan_char(lexer) == ' ' || lexer->current_char == '\n') {
+    while (scan_char(lexer) == ' ' || lexer->current_char == '\n' || lexer->current_char == ';') {
+        if (lexer->current_char == ';') continue; //skip any ; among the whitespace of a start of a line,
+
         indent_size++;
         if (indent_size >= LEXERLIMIT_INDENT_SIZE) {
             lexer->err_msg = "Indentation limit exceeded.";
@@ -466,7 +470,7 @@ Token lexer_next_token(Lexer *lexer) {
     // Function expects that the next character for lexing is already primed.
     // Many sections require to read the next character before confirming, so
     //  instead of backtracking or "unscan_char()", it's done like this for simplicity.
-    // tl;dr The next character for lexing isn't read now but before each fetch returns.
+    // tl;dr The next character for lexing isn't read now but right before each fetch returns.
 
     // CHECK FOR WHITESPACE AND COMMENTS (also tokenize single '/')
     // logic is looped for cases like " /* */   //    \n  /**/ // "
@@ -489,9 +493,6 @@ Token lexer_next_token(Lexer *lexer) {
             }
         }
     }
-    // if()
-    //      fisdjfisdif;        iffff
-
 
     //CHECK FOR NEWLINE, READ INDENT WEIGHT, RETURN TOKEN
     // also takes care of lines separated by ;
@@ -499,10 +500,11 @@ Token lexer_next_token(Lexer *lexer) {
         Token indent_token;
         static unsigned int last_indent_weight = 0;
 
-        if (lexer->current_char == ';') {
-            // in case of ';', eliminate whitespace first
+        while (lexer->current_char == ';') {
+            // in case of ';', read next and eliminate whitespace..    
+            scan_char(lexer);        
             read_whitespace(lexer);
-            // if space after ; is empty, ignore it (same as an empty line)
+            // if the rest of the line after ; is empty, ignore the ;
             if (lexer->current_char != '\n' && lexer->current_char != EOF) {
                 // otherwise, create a newline token and continue next fetch as
                 // if the next content was on a new line
@@ -510,7 +512,10 @@ Token lexer_next_token(Lexer *lexer) {
                 //  as the last indent weight)
                 indent_token = create_token_newline(last_indent_weight);
             }
-        } else {
+        }
+
+        if (lexer->current_char == '\n') {
+            // in case of '\n' read 
             indent_token = read_indent(lexer);
             last_indent_weight = indent_token.value.indent_weight;
         }
