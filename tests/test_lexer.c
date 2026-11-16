@@ -162,7 +162,6 @@ void test_strings(void) {
     t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
     assert(strcmp(t.value.str_val, "normalstring") == 0);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
-    printf("\n\n -%s- \n\n", t.value.str_val);
     assert(strcmp(t.value.str_val, "multiline\nstring") == 0);
 
     t = lexer_next_token(lexer); assert(t.type == TOKEN_INTERPOLATOR);
@@ -173,7 +172,43 @@ void test_strings(void) {
     assert(strcmp(t.value.str_val, "multinice") == 0);
     
     free_lexer_string(lexer);
-    printf("PASSED: test_indents\n");
+    printf("PASSED: test_strings\n");
+}
+
+void test_comments(void) {
+    Token t;
+    Lexer *lexer = init_lexer_string(
+        "def //thiscomment \n"
+        "//thiscomment var \n"
+        "if /* block comment */ then \n"
+        "/**/while/* */do // \n"
+        "def/* * //* * \n"
+        "return */ \n"
+        "/*  do for def var \n"
+        " var def for do  "
+    );
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_DEF);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_IF);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_THEN);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_WHILE);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_DO);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_DEF);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_EOF);
+
+    free_lexer_string(lexer);
+    printf("PASSED: test_comments\n");
 }
 
 // --- ERROR PATH TESTS ---
@@ -223,7 +258,7 @@ void test_unfinished_string(void) {
     t = lexer_next_token(lexer); assert(t.type == TOKEN_INVALID);
     assert(lexer->err_msg != NULL);
     free_lexer_string(lexer);
-
+    
     printf("PASSED: test_unfinished_string\n");
 }
 
@@ -250,10 +285,10 @@ void test_invalid_at_symbol(void) {
 }
 
 void test_id_length_exceeded(void) {
-    // Generate an id name longer than the limit (256 chars)
-    char long_id[300];
-    memset(long_id, 'a', 299);
-    long_id[299] = '\0';
+    // Generate an id name longer than the limit
+    char long_id[LEXERLIMIT_ID_LENGTH+100];
+    memset(long_id, 'a', LEXERLIMIT_ID_LENGTH+99);
+    long_id[LEXERLIMIT_ID_LENGTH+99] = '\0';
 
     Lexer *lexer = init_lexer_string(long_id);
     Token t = lexer_next_token(lexer);
@@ -263,6 +298,87 @@ void test_id_length_exceeded(void) {
 
     free_lexer_string(lexer);
     printf("PASSED: test_id_length_exceeded\n");
+}
+
+void test_number_literal_length_exceeded(void) {
+    // Generate a number longer than the limit
+    char long_id[LEXERLIMIT_NUMLIT_LENGTH+100];
+    memset(long_id, '1', LEXERLIMIT_NUMLIT_LENGTH+99);
+    long_id[LEXERLIMIT_NUMLIT_LENGTH+99] = '\0';
+
+    Lexer *lexer = init_lexer_string(long_id);
+    Token t = lexer_next_token(lexer);
+    
+    assert(t.type == TOKEN_INVALID);
+    assert(lexer->err_msg != NULL);
+
+    free_lexer_string(lexer);
+    printf("PASSED: test_number_literal_length_exceeded\n");
+}
+
+void test_string_literal_length_exceeded(void) {
+    int limit = LEXERLIMIT_STRLIT_LENGTH+100;
+
+    // -- Single line string test
+    char *long_str = malloc(limit + 3);
+    assert(long_str != NULL);
+
+    long_str[0] = '"';
+    for (int i = 1; i <= limit; i++) {
+        long_str[i] = 'a';
+    }
+    long_str[limit + 1] = '"';
+    long_str[limit + 2] = '\0';
+
+    Lexer *lexer1 = init_lexer_string(long_str);
+    Token t1 = lexer_next_token(lexer1);
+    assert(t1.type == TOKEN_INVALID);
+    token_free(t1);
+    
+    free_lexer_string(lexer1);
+    free(long_str);
+
+    // -- Multiline string test
+    char *long_mstr = malloc(limit + 7); //6 for quotes, 1 for \0
+    assert(long_mstr != NULL);
+
+    strcpy(long_mstr, "\"\"\"");
+    for (int i = 3; i < limit + 3; i++) long_mstr[i] = 'b';
+    strcpy(long_mstr + limit + 3, "\"\"\"");
+
+    Lexer *lexer2 = init_lexer_string(long_mstr);
+    Token t2 = lexer_next_token(lexer2);
+    assert(t2.type == TOKEN_INVALID);
+    token_free(t2);
+
+    free_lexer_string(lexer2);
+    free(long_mstr);
+
+    printf("PASSED: test_string_literal_length_exceeded\n");
+}
+
+void test_indent_size_exceeded(void) {
+    int limit = LEXERLIMIT_INDENT_SIZE+50;
+
+    // allocate: '\n' + spaces + "val" + '\0'
+    char *input = malloc(limit + 5);
+    assert(input != NULL);
+
+    input[0] = '\n';
+    for (int i = 1; i <= limit; i++) input[i] = ' ';
+    strcpy(input + limit + 1, "val");
+
+    Lexer *lexer = init_lexer_string(input);
+    Token t = lexer_next_token(lexer);
+    
+    // first token should be indent thats too long
+    assert(t.type == TOKEN_INVALID);
+    assert(lexer->err_msg != NULL);
+
+    free_lexer_string(lexer);
+    free(input);
+
+    printf("PASSED: test_indent_size_exceeded\n");
 }
 
 
@@ -275,12 +391,16 @@ int main(void) {
     test_numbers();
     test_indents();
     test_strings();
+    test_comments();
     
     test_invalid_numbers();
     test_unfinished_string();
     test_invalid_symbols();
     test_invalid_at_symbol();
     test_id_length_exceeded();
+    test_number_literal_length_exceeded();
+    test_string_literal_length_exceeded();
+    test_indent_size_exceeded();
 
     printf("=== LEXER UNIT TESTS DONE ===\n");
     return 0;
