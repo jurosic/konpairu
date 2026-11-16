@@ -289,19 +289,17 @@ Token read_string(Lexer* lexer) {
     int length = 0;
     int escaped = 0;
 
-    while (length < LEXERLIMIT_STRLIT_LENGTH) {
-        if (lexer->current_char == '"' && escaped == 0) {
-            scan_char(lexer); //prime lexer
-            break;
-        }
+    while (lexer->current_char != EOF && lexer->current_char != '\n') {
+        // found a correctly ended string
+        if (lexer->current_char == '"' && escaped == 0) break;
 
-        if (lexer->current_char == EOF || lexer->current_char == '\n') {
-            // INVALID STRING, wasn't ended correctly
-            lexer->err_msg = "Unfinished string literal.";
+        if (length > LEXERLIMIT_STRLIT_LENGTH) {
+            // INVALID STRING, too long
+            lexer->err_msg = "String literal length limit exceeded.";
             return create_token(TOKEN_INVALID);
         }
 
-        //handle escaping properly even though it only matters for \\ and \"
+        //handle escaping properly even though it only matters for \"
         escaped = (lexer->current_char == '\\' && escaped == 0);
 
         scan_buffer[length++] = lexer->current_char;
@@ -309,6 +307,13 @@ Token read_string(Lexer* lexer) {
     }
     scan_buffer[length] = '\0';
 
+    if (lexer->current_char == EOF || lexer->current_char == '\n') {
+        // INVALID STRING, wasn't ended correctly
+        lexer->err_msg = "Unfinished string literal.";
+        return create_token(TOKEN_INVALID);
+    }
+
+    scan_char(lexer); //prime lexer
     return create_token_str(strdup(scan_buffer));
 }
 
@@ -324,13 +329,7 @@ Token read_multiline_string(Lexer* lexer) {
 
     scan_char(lexer); //start off the first character
 
-    while (length < LEXERLIMIT_STRLIT_LENGTH) {
-        if (lexer->current_char == EOF) {
-            // INVALID STRING, wasn't ended correctly
-            lexer->err_msg = "Unfinished multiline string literal.";
-            return create_token(TOKEN_INVALID);
-        }
-
+    while (lexer->current_char != EOF) {
         if (lexer->current_char == '"') {
             quote_count++;
             if (quote_count == 3) {
@@ -339,11 +338,16 @@ Token read_multiline_string(Lexer* lexer) {
                 //buffer = [x,x,x,",",", , , ]
                 //              ^-2--
                 length = length-2;
-                scan_char(lexer); //prime lexer
                 break;
             }
         }else{
             quote_count = 0;
+        }
+
+        if (length > LEXERLIMIT_STRLIT_LENGTH) {
+            // INVALID STRING, too long
+            lexer->err_msg = "String literal length limit exceeded.";
+            return create_token(TOKEN_INVALID);
         }
 
         scan_buffer[length++] = lexer->current_char;
@@ -351,6 +355,13 @@ Token read_multiline_string(Lexer* lexer) {
     }
     scan_buffer[length] = '\0';
 
+    if (lexer->current_char == EOF) {
+        // INVALID STRING, wasn't ended correctly
+        lexer->err_msg = "Unfinished multiline string literal.";
+        return create_token(TOKEN_INVALID);
+    }
+
+    scan_char(lexer); //prime lexer
     return create_token_str(strdup(scan_buffer));
 }
 
