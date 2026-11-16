@@ -153,14 +153,20 @@ void test_indents(void) {
 void test_strings(void) {
     Token t;
     Lexer *lexer = init_lexer_string(
+        "\"\"  "        //empty string
         "\"normalstring\"  "
+        "\"\"\"\"\"\""  //empty multistring
         "\"\"\"multiline\nstring\"\"\"  "
         "s\"nicestring\"  "
         "s\"\"\"multinice\"\"\""
     );
 
     t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
+    assert(strcmp(t.value.str_val, "") == 0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
     assert(strcmp(t.value.str_val, "normalstring") == 0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
+    assert(strcmp(t.value.str_val, "") == 0);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
     assert(strcmp(t.value.str_val, "multiline\nstring") == 0);
 
