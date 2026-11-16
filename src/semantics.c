@@ -130,26 +130,28 @@ int sem_eval_binary_op(DataType type1, DataType type2, bool *convert_left, bool 
             if(is_numeric(type1) && is_numeric(type2)){
                 *out_result_type = TYPE_INT;
 
-                if(type1 == TYPE_DOUBLE || type2 == TYPE_DOUBLE) *out_result_type = TYPE_DOUBLE;
-                // Conversion check
-                if (type1 == TYPE_INT && convert_left) *convert_left = true;
-                if (type2 == TYPE_INT && convert_right) *convert_right = true;
+                if(type1 == TYPE_DOUBLE || type2 == TYPE_DOUBLE){
+                    *out_result_type = TYPE_DOUBLE;
+                    // Conversion check
+                    if (type1 == TYPE_INT && convert_left) *convert_left = true;
+                    if (type2 == TYPE_INT && convert_right) *convert_right = true;
+                }
 
                 return 0;
             }
             return 6;
         case TOKEN_EQUALS: // fallthrough
-        case TOKEN_NOTEQUALS:
-            if(type1 == TYPE_UNIT && type2 == TYPE_UNIT){
+        case TOKEN_NOTEQUALS: // fallthough
+            if((type1 == TYPE_UNIT && type2 == TYPE_UNIT)  || (type1 == TYPE_BOOLEAN && type2 == TYPE_BOOLEAN)){
                 *out_result_type = TYPE_BOOLEAN;
                 return 0;
             }
-            // fallthough
+            /* fallthrough */
         case TOKEN_LESS:        // fallthrough
         case TOKEN_GREATER:     // fallthrough
         case TOKEN_LESSEQUAL:   // fallthrough
         case TOKEN_GREATEREQUAL:
-            if((type1 == TYPE_STRING && type2 == TYPE_STRING) || (is_numeric(type1) && is_numeric(type2) || (type1 == TYPE_BOOLEAN && type2 == TYPE_BOOLEAN)) ){
+            if((type1 == TYPE_STRING && type2 == TYPE_STRING) || (is_numeric(type1) && is_numeric(type2))){
                 *out_result_type = TYPE_BOOLEAN;
 
                 // Conversion check
@@ -201,7 +203,7 @@ int sem_define_function(char *key, DataType return_type, int param_count, DataTy
 // 3. Checks if arg_types match the defined param types (Error 5).
 // If successful, writes the function's return type into *out_return_type.
 int sem_check_function_call(char *key, int arg_count, DataType *arg_types, DataType *out_return_type){
-    SymbolData *func_data = bst_search(&(global_symtable), key);
+    SymbolData *func_data = bst_search(global_symtable, key);
 
     if(func_data == NULL) return 3;
     if(func_data->data.func_data.param_count != arg_count) return 5;
@@ -209,7 +211,7 @@ int sem_check_function_call(char *key, int arg_count, DataType *arg_types, DataT
         if(func_data->data.func_data.param_types[i] != arg_types[i]) return 5;
     }
 
-    out_return_type = func_data->type;
+    *out_return_type = func_data->type;
     return 0;
 }
 

@@ -84,8 +84,8 @@ int create_node(bst_node_t **node, char *key, SymbolData value){
 
     // Copy for array of function parameters
     if (value.symbol_type == SYMBOL_FUNC && value.data.func_data.param_count != 0) {
-        DataType *type_copy = malloc(sizeof(DataType) * value.data.func_data.param_count);
-        if (type_copy == NULL) {
+        (*node)->value.data.func_data.param_types = malloc(sizeof(DataType) * value.data.func_data.param_count);
+        if ((*node)->value.data.func_data.param_types == NULL) {
             // Malloc failed
             free((*node)->key);
             (*node)->key = NULL;
