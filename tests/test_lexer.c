@@ -99,6 +99,57 @@ void test_numbers(void) {
     printf("PASSED: test_numbers\n");
 }
 
+void test_indents(void) {
+    Token t;
+    Lexer *lexer = init_lexer_string(
+        "   \n"
+        "def\n"
+        "   val\n"
+        "   var; var\n"
+        "   if;;   ;;;   \n    \n \n  ;  \n"
+        "      def ;def; def \n"
+        ";;;; val"                  //should have an indent of 1
+    );
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    assert(t.value.indent_weight == 0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_DEF);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    assert(t.value.indent_weight == 3);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_VAL);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    assert(t.value.indent_weight == 3);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_VAR);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    assert(t.value.indent_weight == 3);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_VAR);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    assert(t.value.indent_weight == 3);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_IF);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    assert(t.value.indent_weight == 6);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_DEF);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    assert(t.value.indent_weight == 6);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_DEF);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    assert(t.value.indent_weight == 6);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_DEF);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    assert(t.value.indent_weight == 1);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_VAL);
+    
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_EOF);
+
+    free_lexer_string(lexer);
+    printf("PASSED: test_indents\n");
+}
+
 // --- ERROR PATH TESTS ---
 void test_invalid_numbers(void) {
     Lexer* lexer; Token t;
@@ -188,7 +239,7 @@ int main(void) {
     test_keywords_and_identifiers();
     test_main_annotation();
     test_numbers();
-    //test_indents(); //unfinished
+    test_indents(); //unfinished
     
     test_invalid_numbers();
     test_unfinished_string();
