@@ -2,6 +2,8 @@
 //Project IFJ+IAL - 16.11.2026
 //credit: Samuel Bončo
 
+#define _GNU_SOURCE //allows for standard posix functions like fmemopen, that aren't declared in c11
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,6 +60,7 @@ void test_main_annotation(void) {
     t = lexer_next_token(lexer); assert(t.type == TOKEN_MAINFUNC);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_DEF);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_ID);
+    token_free(t);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_PAREN_L);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_PAREN_R);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_COLON);
@@ -163,19 +166,25 @@ void test_strings(void) {
 
     t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
     assert(strcmp(t.value.str_val, "") == 0);
+    token_free(t);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
     assert(strcmp(t.value.str_val, "normalstring") == 0);
+    token_free(t);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
     assert(strcmp(t.value.str_val, "") == 0);
+    token_free(t);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
     assert(strcmp(t.value.str_val, "multiline\nstring") == 0);
+    token_free(t);
 
     t = lexer_next_token(lexer); assert(t.type == TOKEN_INTERPOLATOR);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
     assert(strcmp(t.value.str_val, "nicestring") == 0);
+    token_free(t);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_INTERPOLATOR);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_STR);
     assert(strcmp(t.value.str_val, "multinice") == 0);
+    token_free(t);
     
     free_lexer_string(lexer);
     printf("PASSED: test_strings\n");
