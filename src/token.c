@@ -53,6 +53,6 @@ void token_free(Token token) {
     if (token.type == TOKEN_ID)
         free(token.value.name);
         
-    if (token.type == TOKEN_STRING)
+    if (token.type == TOKEN_LIT_STR)
         free(token.value.str_val);
 }
