@@ -81,5 +81,125 @@ void codegen_flush(void) {
 }
 
 void codegen_program_start(void) {
+    // Scratchpad global variables for stack tricks (like string concat or 2nd-item float cast)
+    emit("DEFVAR GF@$tmp1\n");
+    emit("DEFVAR GF@$tmp2\n");
     emit("JUMP $$main\n\n");
+}
+
+// Helper: prints a C string in IFJcode26 escaped format (e.g. "a b" -> "a\032b")
+static void emit_escaped_string(const char *str) {
+    if (!str) return;
+    for (size_t i = 0; str[i] != '\0'; i++) {
+        unsigned char c = (unsigned char)str[i];
+        if (c <= 32 || c == '#' || c == '\\') {
+            emit("\\%03d", c);
+        } else {
+            emit("%c", c);
+        }
+    }
+}
+
+void codegen_def_var(const char *var_name) {
+    emit("DEFVAR LF@%s\n", var_name);
+}
+
+void codegen_pop_to_var(const char *var_name) {
+    emit("POPS LF@%s\n", var_name);
+}
+
+void codegen_push_var(const char *var_name) {
+    emit("PUSHS LF@%s\n", var_name);
+}
+
+void codegen_push_int(int val) {
+    emit("PUSHS int@%d\n", val);
+}
+
+void codegen_push_double(double val) {
+    // %a outputs exact hexadecimal float format, which ic26int expects!
+    emit("PUSHS float@%a\n", val);
+}
+
+void codegen_push_string(const char *str) {
+    emit("PUSHS string@");
+    emit_escaped_string(str);
+    emit("\n");
+}
+
+void codegen_push_unit(void) {
+    emit("PUSHS nil@nil\n");
+}
+
+void codegen_int2float_top(void) {
+    emit("INT2FLOATS\n");
+}
+
+void codegen_int2float_second(void) {
+    emit("POPS GF@$tmp1\n");
+    emit("INT2FLOATS\n");
+    emit("PUSHS GF@$tmp1\n");
+}
+
+void codegen_unary_op(TokenType op) {
+    if (op == TOKEN_SUB) {
+        // Stack has [val]. We want [0 - val].
+        emit("POPS GF@$tmp1\n");
+        emit("PUSHS int@0\n");
+        emit("PUSHS GF@$tmp1\n");
+        emit("SUBS\n");
+    }
+}
+
+void codegen_binary_op(TokenType op, DataType operand_type) {
+    switch (op) {
+        case TOKEN_ADD:
+            if (operand_type == TYPE_STRING) {
+                emit("POPS GF@$tmp2\n");
+                emit("POPS GF@$tmp1\n");
+                emit("CONCAT GF@$tmp1 GF@$tmp1 GF@$tmp2\n");
+                emit("PUSHS GF@$tmp1\n");
+            } else {
+                emit("ADDS\n");
+            }
+            break;
+        case TOKEN_SUB:
+            emit("SUBS\n");
+            break;
+        case TOKEN_MUL:
+            emit("MULS\n");
+            break;
+        case TOKEN_DIV:
+            if (operand_type == TYPE_DOUBLE) {
+                emit("DIVS\n");
+            } else {
+                emit("IDIVS\n");
+            }
+            break;
+        case TOKEN_EQUALS:
+            emit("EQS\n");
+            break;
+        case TOKEN_NOTEQUALS:
+            emit("EQS\n");
+            emit("NOTS\n");
+            break;
+        case TOKEN_LESS:
+            emit("LTS\n");
+            break;
+        case TOKEN_GREATER:
+            emit("GTS\n");
+            break;
+        case TOKEN_LESSEQUAL:
+            // a <= b  <=>  !(a > b)
+            emit("GTS\n");
+            emit("NOTS\n");
+            break;
+        case TOKEN_GREATEREQUAL:
+            // a >= b  <=>  !(a < b)
+            emit("LTS\n");
+            emit("NOTS\n");
+            break;
+        default:
+            break;
+    }
 }
