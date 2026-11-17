@@ -1,6 +1,6 @@
 
 CC = gcc
-CFLAGS = -std=c11 -Wall -Wextra -I src
+CFLAGS = -std=c11 -Wall -Wextra -Isrc
 
 #flag -I src  allows files not in src to simply have #include "lexer.h"
 # without having to use #include "../src/lexer"
@@ -35,7 +35,11 @@ cleanup: clean
 # 'make testlexer'
 # runs lexer unit tests, cleans up afterwards
 test_lexer:
-	$(CC) $(CFLAGS) tests/test_lexer.c src/lexer.c src/token.c -o test_lexer
+	$(CC) $(CFLAGS) -g tests/test_lexer.c src/lexer.c src/token.c -o test_lexer -g
 	./test_lexer
+	rm -f test_lexer
+test_lexer_valgrind:
+	$(CC) $(CFLAGS) -g tests/test_lexer.c src/lexer.c src/token.c -o test_lexer -g
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./test_lexer
 	rm -f test_lexer
 
