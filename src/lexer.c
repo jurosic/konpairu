@@ -49,6 +49,18 @@ static const Keyword keywords[] = {
 };
 
 
+// Custom strdup implementation (not defined in string.h in c11)
+char* my_strdup(const char* s) {
+    if (s == NULL) return NULL;
+    size_t len = strlen(s) + 1;
+    char *p = malloc(len);
+    if (p != NULL) {
+        memcpy(p, s, len);
+    }
+    return p;
+}
+
+
 // Scan one character into the lexer and update lexer's position in the filestream.
 // @return Scanned character. For convenience. (as type int for EOF)
 int scan_char(Lexer *lexer) {
@@ -270,7 +282,7 @@ Token read_keyword_or_id_or_interpolator(Lexer* lexer) {
     if (keyword_type == TOKEN_ID)
         //found token, return TOKEN_ID with word as .name
         //STRDUP USES MALLOC!!! Warning about str/id token freeing is in token.h 
-        return create_token_id(strdup(scan_buffer));
+        return create_token_id(my_strdup(scan_buffer));
 
     //if "true" or "false" found, write as TOKEN_LIT_BOOL with .bool_val assigned.
     if (keyword_type == TOKEN_LIT_BOOL)
@@ -314,7 +326,7 @@ Token read_string(Lexer* lexer) {
     }
 
     scan_char(lexer); //prime lexer
-    return create_token_str(strdup(scan_buffer));
+    return create_token_str(my_strdup(scan_buffer));
 }
 
 // Read stream until triple quotes, convert to token.
@@ -362,7 +374,7 @@ Token read_multiline_string(Lexer* lexer) {
     }
 
     scan_char(lexer); //prime lexer
-    return create_token_str(strdup(scan_buffer));
+    return create_token_str(my_strdup(scan_buffer));
 }
 
 // Read one or a sequence of symbols and convert into token.
@@ -554,7 +566,7 @@ Token lexer_next_token(Lexer *lexer) {
             scan_char(lexer); //prime lexer
             // Uses strdup even on an empty string for consistency, since every other instance of
             // a TOKEN_LIT_STR, created by this program, is also allocated and has to be freed.
-            return create_token_str(strdup(""));
+            return create_token_str(my_strdup(""));
         }
         
         //found 1 quote, read string into token
