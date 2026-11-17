@@ -23,6 +23,9 @@ typedef struct {
 
 // CodeBuffer static global instance
 static CodeBuffer out_buf = {NULL, 0, 0};
+// Used for nested loops
+static int label_counter = 0;
+
 
 // Helper to append to out_buf
 static int emit(const char *fmt, ...) {
@@ -55,6 +58,8 @@ static int emit(const char *fmt, ...) {
 
 // Outputs initialization header
 int codegen_init(void) {
+	label_counter = 0;
+
     out_buf.data = malloc(INITIAL_BUF_CAP);
     if (!out_buf.data) return 99;
 
@@ -202,4 +207,36 @@ void codegen_binary_op(TokenType op, DataType operand_type) {
         default:
             break;
     }
+}
+
+int codegen_next_label_id(void) {
+    return ++label_counter;
+}
+
+void codegen_if_start(int label_id) {
+    emit("PUSHS bool@true\n");
+    emit("JUMPIFNEQS $if_else_%d\n", label_id);
+}
+
+void codegen_if_else(int label_id) {
+    emit("JUMP $if_end_%d\n", label_id);
+    emit("LABEL $if_else_%d\n", label_id);
+}
+
+void codegen_if_end(int label_id) {
+    emit("LABEL $if_end_%d\n", label_id);
+}
+
+void codegen_while_header(int label_id) {
+    emit("LABEL $while_start_%d\n", label_id);
+}
+
+void codegen_while_body_start(int label_id) {
+    emit("PUSHS bool@true\n");
+    emit("JUMPIFNEQS $while_end_%d\n", label_id);
+}
+
+void codegen_while_end(int label_id) {
+    emit("JUMP $while_start_%d\n", label_id);
+    emit("LABEL $while_end_%d\n", label_id);
 }

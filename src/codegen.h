@@ -34,6 +34,7 @@ void codegen_push_double(double val);
 void codegen_push_string(const char *str);
 void codegen_push_unit(void);
 
+
 // --- Expressions & Conversions ---
 // Converts the top of the stack from Int to Float (INT2FLOATS)
 void codegen_int2float_top(void);
@@ -48,5 +49,30 @@ void codegen_unary_op(TokenType op);
 // result_type is needed to distinguish Int division (IDIVS) from Double division (DIVS),
 // and String concatenation (CONCAT) from numeric addition (ADDS).
 void codegen_binary_op(TokenType op, DataType operand_type);
+
+
+// --- Control Flow (if / else & while) ---
+// Returns a unique integer ID for pairing labels in nested if/while statements.
+int codegen_next_label_id(void);
+
+// Call right after the 'if' condition expression is evaluated (bool is on stack).
+// Jumps to the 'else' label if the condition is false.
+void codegen_if_start(int label_id);
+
+// Call when transitioning from the 'then' block to the 'else' block.
+void codegen_if_else(int label_id);
+
+// Call at the very end of the 'if-else' statement.
+void codegen_if_end(int label_id);
+
+// Call BEFORE evaluating the 'while' condition expression (places the loop start label).
+void codegen_while_header(int label_id);
+
+// Call right AFTER evaluating the 'while' condition expression (bool is on stack).
+// Jumps to loop end if the condition is false.
+void codegen_while_body_start(int label_id);
+
+// Call at the end of the 'while' body (jumps back to header and places end label).
+void codegen_while_end(int label_id);
 
 #endif // CODEGEN_H

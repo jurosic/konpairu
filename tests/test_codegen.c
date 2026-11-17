@@ -7,20 +7,46 @@ int main(void) {
     assert(codegen_init() == 0);
     codegen_program_start();
 
-    // val x: Double = 5 + 2.5
-    codegen_def_var("x");
-    codegen_push_int(5);
-    codegen_push_double(2.5);
-    codegen_int2float_second(); // semantics.c told us convert_left = true
-    codegen_binary_op(TOKEN_ADD, TYPE_DOUBLE);
-    codegen_pop_to_var("x");
+    // var i = 3
+    codegen_def_var("i");
+    codegen_push_int(3);
+    codegen_pop_to_var("i");
 
-    // val msg: String = "hi " + "there"
-    codegen_def_var("msg");
-    codegen_push_string("hi ");
-    codegen_push_string("there");
-    codegen_binary_op(TOKEN_ADD, TYPE_STRING);
-    codegen_pop_to_var("msg");
+    // while i > 0 do
+    int while_id = codegen_next_label_id();
+    codegen_while_header(while_id);
+    codegen_push_var("i");
+    codegen_push_int(0);
+    codegen_binary_op(TOKEN_GREATER, TYPE_INT);
+    codegen_while_body_start(while_id);
+
+    //   if i == 2 then
+    int if_id = codegen_next_label_id();
+    codegen_push_var("i");
+    codegen_push_int(2);
+    codegen_binary_op(TOKEN_EQUALS, TYPE_INT);
+    codegen_if_start(if_id);
+
+    //     i = i - 1
+    codegen_push_var("i");
+    codegen_push_int(1);
+    codegen_binary_op(TOKEN_SUB, TYPE_INT);
+    codegen_pop_to_var("i");
+
+    //   else
+    codegen_if_else(if_id);
+
+    //     i = i - 1
+    codegen_push_var("i");
+    codegen_push_int(1);
+    codegen_binary_op(TOKEN_SUB, TYPE_INT);
+    codegen_pop_to_var("i");
+
+    //   end if
+    codegen_if_end(if_id);
+
+    // end while
+    codegen_while_end(while_id);
 
     codegen_flush();
     codegen_free();
