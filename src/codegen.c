@@ -125,10 +125,48 @@ int codegen_next_label_id(void) {
 }
 
 void codegen_program_start(void) {
-    // Scratchpad global variables for stack tricks (like string concat or 2nd-item float cast)
-    emit("DEFVAR GF@$tmp1\n");
-    emit("DEFVAR GF@$tmp2\n");
+	emit("DEFVAR GF@$tmp1\n");
+	emit("DEFVAR GF@$tmp2\n");
+	emit("DEFVAR GF@$tmp3\n");
     emit("JUMP $$main\n\n");
+
+    // Reusable built-in subroutine: subStr(s: String, from: Int, to: Int): String
+    emit("LABEL $$builtin_substr\n");
+    emit("CREATEFRAME\n");
+    emit("PUSHFRAME\n");
+    emit("DEFVAR LF@to\n");
+    emit("DEFVAR LF@from\n");
+    emit("DEFVAR LF@s\n");
+    emit("DEFVAR LF@len\n");
+    emit("DEFVAR LF@res\n");
+    emit("DEFVAR LF@ch\n");
+    emit("DEFVAR LF@cond\n");
+    emit("POPS LF@to\n");
+    emit("POPS LF@from\n");
+    emit("POPS LF@s\n");
+    emit("MOVE LF@res string@\n");
+    emit("STRLEN LF@len LF@s\n");
+    // Bounds checks: from < 0 || from >= len || to < from || to > len -> return ""
+    emit("LT LF@cond LF@from int@0\n");
+    emit("JUMPIFEQ $$substr_end LF@cond bool@true\n");
+    emit("LT LF@cond LF@from LF@len\n");
+    emit("JUMPIFNEQ $$substr_end LF@cond bool@true\n");
+    emit("LT LF@cond LF@to LF@from\n");
+    emit("JUMPIFEQ $$substr_end LF@cond bool@true\n");
+    emit("GT LF@cond LF@to LF@len\n");
+    emit("JUMPIFEQ $$substr_end LF@cond bool@true\n");
+    // Loop from..to-1
+    emit("LABEL $$substr_loop\n");
+    emit("LT LF@cond LF@from LF@to\n");
+    emit("JUMPIFNEQ $$substr_end LF@cond bool@true\n");
+    emit("GETCHAR LF@ch LF@s LF@from\n");
+    emit("CONCAT LF@res LF@res LF@ch\n");
+    emit("ADD LF@from LF@from int@1\n");
+    emit("JUMP $$substr_loop\n");
+    emit("LABEL $$substr_end\n");
+    emit("PUSHS LF@res\n");
+    emit("POPFRAME\n");
+    emit("RETURN\n\n");
 }
 
 // Helper: prints a C string in IFJcode26 escaped format (e.g. "a b" -> "a\032b")
@@ -320,4 +358,117 @@ void codegen_func_end(void) {
 
     free(current_func_name);
     current_func_name = NULL;
+}
+
+void codegen_builtin_to_str(DataType arg_type) {
+    switch (arg_type) {
+        case TYPE_INT:
+            emit("INT2STRS\n");
+            break;
+        case TYPE_DOUBLE:
+            emit("FLOAT2STRS\n");
+            break;
+        case TYPE_UNIT:
+            emit("POPS GF@$tmp1\n");
+            emit("PUSHS string@()\n");
+            break;
+        case TYPE_STRING:
+        default:
+            // Already a String on top of the stack
+            break;
+    }
+}
+
+void codegen_builtin_to_int(void) {
+    emit("FLOAT2INTS\n");
+}
+
+void codegen_builtin_str_length(void) {
+    emit("POPS GF@$tmp1\n");
+    emit("STRLEN GF@$tmp1 GF@$tmp1\n");
+    emit("PUSHS GF@$tmp1\n");
+}
+
+void codegen_builtin_chr(void) {
+    emit("INT2CHARS\n");
+}
+
+void codegen_builtin_ord(void) {
+    int id = codegen_next_label_id();
+    emit("POPS GF@$tmp2\n"); // idx
+    emit("POPS GF@$tmp1\n"); // s
+
+    // 1. Check idx < 0
+    emit("LT GF@$tmp3 GF@$tmp2 int@0\n");
+    emit("JUMPIFEQ $ord_invalid_%d GF@$tmp3 bool@true\n", id);
+
+    // 2. Check idx < strlen(s)
+    emit("STRLEN GF@$tmp3 GF@$tmp1\n");
+    emit("LT GF@$tmp3 GF@$tmp2 GF@$tmp3\n");
+    emit("JUMPIFNEQ $ord_invalid_%d GF@$tmp3 bool@true\n", id);
+
+    // 3. Valid
+    emit("STRI2INT GF@$tmp1 GF@$tmp1 GF@$tmp2\n");
+    emit("PUSHS GF@$tmp1\n");
+    emit("JUMP $ord_end_%d\n", id);
+
+    emit("LABEL $ord_invalid_%d\n", id);
+    emit("PUSHS int@0\n");
+    emit("LABEL $ord_end_%d\n", id);
+}
+
+void codegen_func_param(const char *param_name) {
+    codegen_def_var(param_name);
+    emit("POPS LF@%s\n", param_name);
+}
+
+void codegen_call_func(const char *func_name) {
+    emit("CALL $%s\n", func_name);
+}
+
+void codegen_func_return(void) {
+    emit("POPFRAME\n");
+    emit("RETURN\n");
+}
+
+void codegen_discard_stack_top(void) {
+    emit("POPS GF@$tmp1\n");
+}
+
+void codegen_builtin_print(DataType arg_type) {
+    emit("POPS GF@$tmp1\n");
+    if (arg_type == TYPE_UNIT) {
+        emit("WRITE string@()\n");
+    } else {
+        emit("WRITE GF@$tmp1\n");
+    }
+}
+
+void codegen_builtin_read_line(void) {
+    emit("READ GF@$tmp1 string\n");
+    emit("PUSHS GF@$tmp1\n");
+}
+
+void codegen_builtin_read_int(void) {
+    int id = codegen_next_label_id();
+    emit("READ GF@$tmp1 int\n");
+    emit("TYPE GF@$tmp2 GF@$tmp1\n");
+    emit("JUMPIFNEQ $readint_ok_%d GF@$tmp2 string@nil\n", id);
+    emit("MOVE GF@$tmp1 int@0\n");
+    emit("LABEL $readint_ok_%d\n", id);
+    emit("PUSHS GF@$tmp1\n");
+}
+
+void codegen_builtin_read_double(void) {
+    int id = codegen_next_label_id();
+    emit("READ GF@$tmp1 float\n");
+    emit("TYPE GF@$tmp2 GF@$tmp1\n");
+    emit("JUMPIFNEQ $readdbl_ok_%d GF@$tmp2 string@nil\n", id);
+    emit("MOVE GF@$tmp1 float@0x0p+0\n");
+    emit("LABEL $readdbl_ok_%d\n", id);
+    emit("PUSHS GF@$tmp1\n");
+}
+
+void codegen_builtin_substr(void) {
+    emit("CALL $$builtin_substr\n");
 }

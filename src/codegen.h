@@ -76,16 +76,66 @@ void codegen_while_body_start(int label_id);
 void codegen_while_end(int label_id);
 
 // --- Functions and @main ---
-// Call when entering the @main function.
+// Starts buffering declarations and instructions for the @main entry function.
+// Returns 0 on success, 99 on malloc failure.
 int codegen_main_start(void);
 
-// Call when leaving the @main function.
+// Finalizes the @main function (stitches hoisted DEFVARs + body and emits EXIT int@0).
 void codegen_main_end(void);
 
-// Call when entering a regular user function 'def name(...)'.
+// Starts buffering declarations and instructions for a user function 'def func_name(...)'.
+// Returns 0 on success, 99 on malloc failure.
 int codegen_func_start(const char *func_name);
 
-// Call when leaving a regular user function.
+// Finalizes a user function (stitches hoisted DEFVARs + body and emits default Unit RETURN).
 void codegen_func_end(void);
+
+// Declares a formal parameter in LF and pops its argument from the data stack.
+// NOTE: Because arguments are pushed left-to-right, pop parameters in REVERSE order.
+void codegen_func_param(const char *param_name);
+
+// Emits a call to a user-defined function (assumes arguments are already pushed onto stack).
+// Leaves the function's return value on top of the data stack.
+void codegen_call_func(const char *func_name);
+
+// Emits an explicit return from a user function (assumes return value is on stack).
+void codegen_func_return(void);
+
+// Discards the top value of the data stack (used when ignoring a standalone call's return value).
+void codegen_discard_stack_top(void);
+
+// --- Built-in Functions ---
+// Pops the top value from the stack and prints it (Unit prints as "()").
+void codegen_builtin_print(DataType arg_type);
+
+// Reads a line from stdin and pushes the resulting String onto the stack.
+void codegen_builtin_read_line(void);
+
+// Reads an Int from stdin (pushes 0 on EOF or invalid input).
+void codegen_builtin_read_int(void);
+
+// Reads a Double from stdin (pushes 0.0 on EOF or invalid input).
+void codegen_builtin_read_double(void);
+
+// Converts the top value on the stack to String (Double formatted as %.2f, Unit as "()").
+void codegen_builtin_to_str(DataType arg_type);
+
+// Truncates a Double on top of the stack to Int (FLOAT2INTS).
+void codegen_builtin_to_int(void);
+
+// Pops a String from the stack and pushes its character length (Int).
+void codegen_builtin_str_length(void);
+
+// Pops an Int ASCII code from the stack and pushes a 1-character String.
+void codegen_builtin_chr(void);
+
+// Pops (s: String, idx: Int) from the stack and pushes the ASCII code (or 0 if out of bounds).
+void codegen_builtin_ord(void);
+
+// Pops (s1: String, s2: String) from the stack and pushes -1, 0, or 1.
+void codegen_builtin_strcmp(void);
+
+// Pops (s: String, from: Int, to: Int) from the stack and pushes substring [from, to).
+void codegen_builtin_substr(void);
 
 #endif // CODEGEN_H
