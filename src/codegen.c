@@ -182,17 +182,16 @@ static void emit_escaped_string(const char *str) {
     }
 }
 
-void codegen_def_var(const char *var_name) {
-    // ALWAYS hoist defvars in function definition buffer to avoid redefinition in loops
-    buf_emit(&func_defs_buf, "DEFVAR LF@%s\n", var_name);
+void codegen_def_var(const char *var_name, int scope_id) {
+    buf_emit(&func_defs_buf, "DEFVAR LF@%s$%d\n", var_name, scope_id);
 }
 
-void codegen_pop_to_var(const char *var_name) {
-    emit("POPS LF@%s\n", var_name);
+void codegen_pop_to_var(const char *var_name, int scope_id) {
+    emit("POPS LF@%s$%d\n", var_name, scope_id);
 }
 
-void codegen_push_var(const char *var_name) {
-    emit("PUSHS LF@%s\n", var_name);
+void codegen_push_var(const char *var_name, int scope_id) {
+    emit("PUSHS LF@%s$%d\n", var_name, scope_id);
 }
 
 void codegen_push_int(int val) {
@@ -417,9 +416,9 @@ void codegen_builtin_ord(void) {
     emit("LABEL $ord_end_%d\n", id);
 }
 
-void codegen_func_param(const char *param_name) {
-    codegen_def_var(param_name);
-    emit("POPS LF@%s\n", param_name);
+void codegen_func_param(const char *param_name, int scope_id) {
+    codegen_def_var(param_name, scope_id);
+    emit("POPS LF@%s$%d\n", param_name, scope_id);
 }
 
 void codegen_call_func(const char *func_name) {

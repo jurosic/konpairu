@@ -19,14 +19,15 @@ void codegen_flush(void);
 void codegen_program_start(void);
 
 // --- Variables & Literals ---
-// Declares a variable in the current local frame (DEFVAR LF@name)
-void codegen_def_var(const char *var_name);
+// Declares a variable in the current function's local frame (hoisted to function start).
+// scope_id disambiguates shadowed variables across nested scopes (emits LF@var_name$scope_id).
+void codegen_def_var(const char *var_name, int scope_id);
 
-// Pops the top of the data stack into a local variable (POPS LF@name)
-void codegen_pop_to_var(const char *var_name);
+// Pops the top value of the data stack into a local variable (POPS LF@var_name$scope_id).
+void codegen_pop_to_var(const char *var_name, int scope_id);
 
-// Pushes a local variable's value onto the data stack (PUSHS LF@name)
-void codegen_push_var(const char *var_name);
+// Pushes a local variable's value onto the data stack (PUSHS LF@var_name$scope_id).
+void codegen_push_var(const char *var_name, int scope_id);
 
 // Pushes literals onto the data stack
 void codegen_push_int(int val);
@@ -92,7 +93,7 @@ void codegen_func_end(void);
 
 // Declares a formal parameter in LF and pops its argument from the data stack.
 // NOTE: Because arguments are pushed left-to-right, pop parameters in REVERSE order.
-void codegen_func_param(const char *param_name);
+void codegen_func_param(const char *param_name, int scope_id);
 
 // Emits a call to a user-defined function (assumes arguments are already pushed onto stack).
 // Leaves the function's return value on top of the data stack.
