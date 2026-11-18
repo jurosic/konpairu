@@ -7,6 +7,8 @@ int main(void) {
     assert(codegen_init() == 0);
     codegen_program_start();
 
+    codegen_main_start();
+
     // var i = 3
     codegen_def_var("i");
     codegen_push_int(3);
@@ -20,33 +22,36 @@ int main(void) {
     codegen_binary_op(TOKEN_GREATER, TYPE_INT);
     codegen_while_body_start(while_id);
 
-    //   if i == 2 then
+    //   var loop_var = i * 10  (declared inside loop, hoisted safely to top!)
+    codegen_def_var("loop_var");
+    codegen_push_var("i");
+    codegen_push_int(10);
+    codegen_binary_op(TOKEN_MUL, TYPE_INT);
+    codegen_pop_to_var("loop_var");
+
+    //   if i == 2 then i = i - 1 else i = i - 1
     int if_id = codegen_next_label_id();
     codegen_push_var("i");
     codegen_push_int(2);
     codegen_binary_op(TOKEN_EQUALS, TYPE_INT);
     codegen_if_start(if_id);
 
-    //     i = i - 1
     codegen_push_var("i");
     codegen_push_int(1);
     codegen_binary_op(TOKEN_SUB, TYPE_INT);
     codegen_pop_to_var("i");
 
-    //   else
     codegen_if_else(if_id);
 
-    //     i = i - 1
     codegen_push_var("i");
     codegen_push_int(1);
     codegen_binary_op(TOKEN_SUB, TYPE_INT);
     codegen_pop_to_var("i");
 
-    //   end if
     codegen_if_end(if_id);
-
-    // end while
     codegen_while_end(while_id);
+
+    codegen_main_end();
 
     codegen_flush();
     codegen_free();

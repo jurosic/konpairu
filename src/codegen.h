@@ -75,4 +75,17 @@ void codegen_while_body_start(int label_id);
 // Call at the end of the 'while' body (jumps back to header and places end label).
 void codegen_while_end(int label_id);
 
+// --- Functions and @main ---
+// Call when entering the @main function.
+int codegen_main_start(void);
+
+// Call when leaving the @main function.
+void codegen_main_end(void);
+
+// Call when entering a regular user function 'def name(...)'.
+int codegen_func_start(const char *func_name);
+
+// Call when leaving a regular user function.
+void codegen_func_end(void);
+
 #endif // CODEGEN_H
