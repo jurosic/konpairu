@@ -11,6 +11,7 @@ from typing import Optional
 DEFAULT_COMPILER = "../ifj26"       # Cesta k vášmu skompilovanému prekladaču
 DEFAULT_INTERPRETER = "./ic26int"   # Cesta k interpretu (voliteľné)
 TIMEOUT_SEC = 2.0                   # Ochrana proti zacykleniu v lexeri/parseri
+VALGRIND_TIMEOUT_SEC = 10.0
 
 # ANSI farby pre terminál
 GREEN = "\033[92m"
@@ -20,83 +21,87 @@ CYAN = "\033[96m"
 RESET = "\033[0m"
 PROLOG = "import ifj26.*\n"
 
+
 @dataclass
 class TestCase:
     name: str
     code: str
-    expected_rc: int                # Očakávaný návratový kód prekladača (0, 1, 2, 3, 4, 6...)
+    expected_rc: int                     # Očakávaný návratový kód prekladača
     use_prolog: bool = True
-    stdin_input: str = ""           # Vstup pre interpret (ak sa testuje aj beh)
-    expected_out: Optional[str] = None  # Očakávaný stdout z interpretu (None = len preklad)
+    stdin_input: str = ""                # Vstup pre interpret (ak sa testuje aj beh)
+    expected_out: Optional[str] = None   # Očakávaný stdout z interpretu (None = len preklad)
 
 
-# ==============================================================================
-# ZOZNAM TESTOV (pridávajte nové snippety sem)
-# Pozn.: Upravte syntax (prológ, kľúčové slová def/fun/var/val) presne podľa IFJ26 zadania!
-# ==============================================================================
 TESTS = [
     # --- 1. VALIDNÉ PROGRAMY (Očakávaný kód 0) ---
     TestCase(
-        name="Valid: Prázdna funkcia main",
+        name="Valid: Minimálna funkcia main (telo s Unit literálom)",
         code="""
-def main() : Unit {
-}
+@main def main(): Unit =
+    ()
 """,
         expected_rc=0,
     ),
     TestCase(
         name="Valid: Aritmetika a implicitná konverzia Int -> Double",
         code="""
-def main() : Unit {
-    var a : Int = 5
-    var b : Double = 2.5
-    var c : Double = a + b
-}
+@main def main(): Unit =
+    var a: Int = 5
+    var b: Double = 2.5
+    var c: Double = a + b
 """,
         expected_rc=0,
     ),
     TestCase(
         name="Valid: Shadowing premennej vo vnorenom bloku",
         code="""
-def main() : Unit {
-    var x : Int = 10
-    if (x > 5) {
-        var x : String = "vnorene"
-    }
-    var y : Int = x + 1
-}
+@main def main(): Unit =
+    var x: Int = 10
+    if x > 5 then
+        var x: String = "vnorene"
+    else
+        ()
+    var y: Int = x + 1
 """,
         expected_rc=0,
     ),
     TestCase(
         name="Valid: Volanie funkcie s parametrami",
         code="""
-def add(a : Int, b : Double) : Double {
+def add(a: Int, b: Double): Double =
     return a + b
-}
-def main() : Unit {
-    var res : Double = add(3, 4.5)
-}
+
+@main def main(): Unit =
+    var res: Double = add(3, 4.5)
 """,
         expected_rc=0,
+    ),
+    TestCase(
+        name="Valid: Výpis hodnoty (E2E test pre interpret)",
+        code="""
+@main def main(): Unit =
+    var a: Int = 40
+    var b: Int = a + 2
+    print(b)
+""",
+        expected_rc=0,
+        expected_out="42",
     ),
 
     # --- 2. LEXIKÁLNE CHYBY (Kód 1) ---
     TestCase(
         name="Lex Error: Neukončený reťazec",
         code="""
-def main() : Unit {
-    var s : String = "neukonceny text
-}
+@main def main(): Unit =
+    var s: String = "neukonceny text
 """,
         expected_rc=1,
     ),
     TestCase(
         name="Lex Error: Neplatný znak v kóde",
         code="""
-def main() : Unit {
-    var a : Int = 5 @ 3
-}
+@main def main(): Unit =
+    var a: Int = 5 # 3
 """,
         expected_rc=1,
     ),
@@ -105,8 +110,8 @@ def main() : Unit {
     TestCase(
         name="Syntax Error: Chýbajúci povinný prológ",
         code="""
-def main() : Unit {
-}
+@main def main(): Unit =
+    ()
 """,
         expected_rc=2,
         use_prolog=False,
@@ -114,76 +119,85 @@ def main() : Unit {
     TestCase(
         name="Syntax Error: Chýbajúca uzatváracia zátvorka",
         code="""
-def main() : Unit {
-    var a : Int = (5 + 3
-}
+@main def main(): Unit =
+    var a: Int = (5 + 3
 """,
         expected_rc=2,
     ),
     TestCase(
         name="Syntax Error: Vnorená definícia funkcie",
         code="""
-def main() : Unit {
-    def nested() : Unit {
-    }
-}
+@main def main(): Unit =
+    def nested(): Unit =
+        ()
 """,
         expected_rc=2,
     ),
 
-    # --- 4. SÉMANTICKÉ CHYBY (Kódy skontroluj podľa zadania IFJ26) ---
+    # --- 4. SÉMANTICKÉ CHYBY (Kódy podľa sekcie 6 zadania IFJ26) ---
     TestCase(
         name="Sem Error (3): Nedefinovaná premenná",
         code="""
-def main() : Unit {
-    var a : Int = neexistuje + 1
-}
+@main def main(): Unit =
+    var a: Int = neexistuje + 1
+""",
+        expected_rc=3,
+    ),
+    TestCase(
+        name="Sem Error (3): Chýbajúca anotácia @main",
+        code="""
+def main(): Unit =
+    ()
 """,
         expected_rc=3,
     ),
     TestCase(
         name="Sem Error (4): Redefinícia premennej v rovnakom scope",
         code="""
-def main() : Unit {
-    var x : Int = 1
-    var x : Int = 2
-}
+@main def main(): Unit =
+    var x: Int = 1
+    var x: Int = 2
 """,
         expected_rc=4,
     ),
     TestCase(
         name="Sem Error (4): Redefinícia funkcie",
         code="""
-def foo() : Unit {}
-def foo() : Unit {}
-def main() : Unit {}
+def foo(): Unit =
+    ()
+
+def foo(): Unit =
+    ()
+
+@main def main(): Unit =
+    ()
 """,
         expected_rc=4,
     ),
     TestCase(
         name="Sem Error (6): Typová nekompatibilita String + Int",
         code="""
-def main() : Unit {
-    var s : String = "ahoj" + 5
-}
+@main def main(): Unit =
+    var s: String = "ahoj" + 5
 """,
         expected_rc=6,
     ),
     TestCase(
         name="Sem Error (6): Porovnávanie Boolean cez operátor <",
         code="""
-def main() : Unit {
-    var b : Boolean = (1 < 2) < (3 < 4)
-}
+@main def main(): Unit =
+    if (1 < 2) < (3 < 4) then
+        ()
+    else
+        ()
 """,
         expected_rc=6,
     ),
     TestCase(
         name="Sem Error (6): Aritmetika s Boolean",
         code="""
-def main() : Unit {
-    var x : Int = (1 == 1) + 5
-}
+@main def main(): Unit =
+    var x: Int = (1 == 1) + 5
 """,
         expected_rc=6,
     ),
@@ -192,12 +206,14 @@ def main() : Unit {
 
 def run_compiler(compiler_path: str, code: str, use_valgrind: bool):
     cmd = [compiler_path]
+    timeout = TIMEOUT_SEC
     if use_valgrind:
+        timeout = VALGRIND_TIMEOUT_SEC
         cmd = [
             "valgrind",
             "--leak-check=full",
             "--errors-for-leak-kinds=all",
-            "--error-exitcode=111",  # Špecifický kód pre memory leak/invalid read
+            "--error-exitcode=111",
             "--quiet",
             compiler_path,
         ]
@@ -208,7 +224,7 @@ def run_compiler(compiler_path: str, code: str, use_valgrind: bool):
             input=code,
             text=True,
             capture_output=True,
-            timeout=TIMEOUT_SEC,
+            timeout=timeout,
         )
         return proc.returncode, proc.stdout, proc.stderr, False
     except subprocess.TimeoutExpired:
@@ -248,20 +264,22 @@ def main():
         print(f"{RED}Chyba: Binárka '{args.compiler}' neexistuje. Najprv spusti 'make'.{RESET}")
         sys.exit(1)
 
-    passed = 0
-    failed = 0
-
-    for idx, test in enumerate(TESTS, 1):
-        full_code = (PROLOG + test.code) if test.use_prolog else test.code
-        rc, stdout, stderr, timed_out = run_compiler(args.compiler, full_code, args.valgrind)
+    if args.interpreter and not os.path.isfile(args.interpreter):
+        print(f"{RED}Chyba: Interpret '{args.interpreter}' neexistuje.{RESET}")
+        sys.exit(1)
 
     print(f"{CYAN}=== Spúšťam {len(TESTS)} E2E testov ({args.compiler}) ==={RESET}")
     if args.valgrind:
         print(f"{YELLOW}Režim: Valgrind memory check AKTÍVNY{RESET}")
     print()
 
+    passed = 0
+    failed = 0
+
     for idx, test in enumerate(TESTS, 1):
-        rc, stdout, stderr, timed_out = run_compiler(args.compiler, test.code, args.valgrind)
+        body = test.code.lstrip("\n")
+        full_code = (PROLOG + body) if test.use_prolog else body
+        rc, stdout, stderr, timed_out = run_compiler(args.compiler, full_code, args.valgrind)
 
         # 1. Kontrola timeoutu
         if timed_out:
