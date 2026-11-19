@@ -6,6 +6,7 @@
 
 // A single frame on the scope stack
 typedef struct Scope {
+    int scope_id;           // Specific id for scope
     bst_node_t *tree;       // Root of this scope's AVL tree
     struct Scope *outer;    // Pointer to the enclosing (parent) scope
 } Scope;
@@ -13,6 +14,9 @@ typedef struct Scope {
 // File-scoped state (invisible outside semantics.c)
 static Scope *current_scope = NULL;       // Points to the topmost (most local) scope
 static bst_node_t *global_symtable = NULL; // Dedicated tree for global identifiers (functions)
+
+// Incremented counter for assigning ids to scopes
+static int next_scope_id = 1;
 
 bool is_numeric(DataType type){
     if(type == TYPE_INT || type == TYPE_DOUBLE) return true;
@@ -22,6 +26,8 @@ bool is_numeric(DataType type){
 // Initializes the semantic module (creates the global scope tree).
 void sem_init(){
     bst_init(&global_symtable);
+    current_scope = NULL;
+    next_scope_id = 1; // Reset for clean unit testing
 }
 
 // Called by the parser every time it encounters 'if', 'while', or a new function.
@@ -31,6 +37,7 @@ int sem_enter_scope(){
     if(new_scope == NULL) return 99;
 
     bst_init(&(new_scope->tree));
+    new_scope->scope_id = next_scope_id++;
     new_scope->outer = current_scope;
     current_scope = new_scope;
 
