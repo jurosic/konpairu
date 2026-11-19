@@ -1,5 +1,5 @@
-#ifndef TOKEN_BUFFER
-#define TOKEN_BUFFER
+#ifndef TOKEN_BUFFER_H
+#define TOKEN_BUFFER_H
 
 
 #include "token.h"
@@ -15,11 +15,9 @@ typedef struct{
 
 
 
-//frees value of token if needed
-void free_token_content(Token* token);
 
 //frees value of all tokens in buffer if needed
-void free_all_token_content(TokenBuffer* buffer);
+void all_token_content_free(TokenBuffer* buffer);
 
 //frees buffer memory
 //returns as NULL
