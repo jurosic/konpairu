@@ -44,6 +44,19 @@ typedef struct{
 
 
 //      helper funcs     //
+
+char* my_mystrdup(const char* s) {
+    if (s == NULL) return NULL;
+    size_t len = strlen(s) + 1;
+    char *p = malloc(len);
+    if (p != NULL) {
+        memcpy(p, s, len);
+    }
+    return p;
+}
+
+
+
 //temporarlly exits
 //exits compiler with error msg & exit_code
 static void parse_error(Parser *p, int exit_code, const char *msg){
@@ -197,7 +210,7 @@ DataType parse_func_call(Parser *p){
         parse_error(p, SYNTAX_ERR_CODE, "Expected function modifier");
     }
 
-    char *func_name = strdup(curr_token(p)->value.name);
+    char *func_name = mystrdup(curr_token(p)->value.name);
     advance(p);
 
     if(!match(p, TOKEN_PAREN_L)){
@@ -283,7 +296,7 @@ void parse_assign(Parser *p){
         parse_error(p, SYNTAX_ERR_CODE, "Expected variable identifier");
     }
 
-    char *var_name = strdup(curr_token(p)->value.name);
+    char *var_name = mystrdup(curr_token(p)->value.name);
     advance(p);
 
     expect(p, TOKEN_ASSIGN);
@@ -376,7 +389,7 @@ static void parse_var(Parser *p){
         parse_error(p, SYNTAX_ERR_CODE, "expected identifier of variable");
     }
 
-    char *var_name = strdup(curr_token(p)->value.name);
+    char *var_name = mystrdup(curr_token(p)->value.name);
     advance(p);
 
     //optional var type
@@ -461,7 +474,7 @@ static void parse_func(Parser *p){
         parse_error(p, SYNTAX_ERR_CODE, "expected function name");
     }
 
-    char *func_name = strdup(curr_token(p)->value.name);
+    char *func_name = mystrdup(curr_token(p)->value.name);
     advance(p);
 
 
@@ -489,7 +502,7 @@ static void parse_func(Parser *p){
                 parse_error(p, SYNTAX_ERR_CODE, "Expected parameter name");
             }
 
-            param[param_count].name = strdup(curr_token(p)->value.name);
+            param[param_count].name = mystrdup(curr_token(p)->value.name);
             advance(p);
             if(!match(p, TOKEN_COLON)){
                 free(func_name);
