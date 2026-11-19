@@ -65,7 +65,6 @@ static void parse_error(Parser *p, int exit_code, const char *msg){
     if(p->buffer){
         token_buffer_free(p->buffer);
     }
-    codegen_flush();
     codegen_free();
     sem_dispose();
     exit(exit_code);
@@ -326,9 +325,11 @@ void parse_assign(Parser *p){
 static void parse_first_import(Parser *p){
     expect(p, TOKEN_IMPORT);
     Token *id = curr_token(p);
-    if(id->type != TOKEN_ID || strcmp(id->value.name, "ifj26.*") != 0){
+    if(id->type != TOKEN_ID || strcmp(id->value.name, "ifj26") != 0){
         parse_error(p, SYNTAX_ERR_CODE, "Expected import \"ifj26.*\"");
     }
+    expect(p, TOKEN_DOT);
+    expect(p, TOKEN_MUL);
     advance(p);
 }
 
@@ -752,6 +753,7 @@ int parse(Lexer *lexer){
 
     sem_init();
     load_first_token(p.lexer, p.buffer);
+    advance(&p);
 
     parse_first_import(&p);
     codegen_program_start();
@@ -775,4 +777,10 @@ int parse(Lexer *lexer){
 
     return 0;
 
+}
+
+int main(){
+    Lexer *lexer = lexer_init(stdin);
+    parse(lexer);
+    return 0;
 }
