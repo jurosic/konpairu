@@ -40,10 +40,10 @@ int sem_check_assignment(char *key, DataType expr_type);
 // Handles IFJ26 implicit conversion (Int -> Double).
 // Returns Error 6 if incompatible (e.g., Int + String).
 // If successful, writes the resulting type into *out_result_type.
-int sem_eval_binary_op(DataType type1, DataType type2, bool *convert_left, bool *convert_right, TokenType operator, DataType *out_result_type);
+int sem_eval_binary_op(DataType type1, DataType type2, bool *convert_left, bool *convert_right, TokenType _operator, DataType *out_result_type);
 
 // (Optional) Same as above, but for unary operators like -x or !x
-int sem_eval_unary_op(DataType type, TokenType operator, DataType *out_result_type);
+int sem_eval_unary_op(DataType type, TokenType _operator, DataType *out_result_type);
 
 // Called when parser reads: def foo(x: Int): String
 // Checks for redefinition (Error 4).
