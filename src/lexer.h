@@ -4,6 +4,20 @@
 #include <stdio.h>
 #include "token.h"
 
+
+//Safety limits for reading potentially infinite patterns
+typedef enum {
+    //APPLIED FOR ALL: (limits in characters, not counting \0)
+    //identifier/keyword length limit 
+    LEXERLIMIT_ID_LENGTH = 256,
+    //num literal length limit, used for floats and ints
+    LEXERLIMIT_NUMLIT_LENGTH = 256, 
+    //string literal length limit
+    LEXERLIMIT_STRLIT_LENGTH = 2048,
+    //a reasonable indentation limit, 100 tabs worth of indentation
+    LEXERLIMIT_INDENT_SIZE = 400,
+} LexerLimits;
+
 // The lexer struct
 typedef struct {
     FILE* stream;       // The input filestream being read character-by-character
