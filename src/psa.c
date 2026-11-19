@@ -8,6 +8,7 @@
 #include "semantics.h"
 
 
+
 #define INIT_STACK_CAP 16
 #define STACK_CAP_MUL 2         //multiplier for stack capacity if full
 
@@ -173,21 +174,30 @@ int reduce_rule(PrecStack *s){
         switch(handle->token_type){
             case TOKEN_LIT_INT:
                 result_nonterm.data_type = TYPE_INT;
+                codegen_push_int(handle[0].value.int_val);
                 break;
             case TOKEN_LIT_DOUBLE:
                 result_nonterm.data_type = TYPE_DOUBLE;
+                codegen_push_double(handle[0].value.double_val);
                 break;
             case TOKEN_LIT_STR:
                 result_nonterm.data_type = TYPE_STRING;
+                codegen_push_string(handle[0].value.str_val);
                 break;
             case TOKEN_LIT_BOOL:
                 result_nonterm.data_type = TYPE_BOOLEAN;
+                codegen_push_int(handle[0].value.bool_val);
                 break;
             case TOKEN_ID:
                 DataType id_type;
                 int sem_res = sem_get_variable_type(handle->name, &id_type);
                 if(sem_res != 0)    return sem_res;
                 result_nonterm.data_type = id_type;
+                //TO DO: semantics func for scope?
+                //temporary scope_id = 0 
+                int scope_id = 0;
+                codegen_push_var(handle[0].name, scope_id);
+
                 break;
             default:
                 return 2;
@@ -218,9 +228,17 @@ int reduce_rule(PrecStack *s){
 
         int sem_res = sem_eval_binary_op(handle[0].data_type, handle[2].data_type, &conv_l, &conv_r, handle[1].token_type, &res_type);
 
-        if(sem_res != 0){
-            return sem_res;
+        if(sem_res != 0)    return sem_res;
+
+        
+        if(conv_l){
+            codegen_int2float_second();
         }
+        if(conv_r){
+            codegen_int2float_top();
+        }
+        codegen_binary_op(handle[1].token_type, res_type);
+
         result_nonterm.data_type = res_type;
 
     }

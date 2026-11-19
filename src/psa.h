@@ -3,6 +3,7 @@
 
 #include "token.h"
 #include "semantics.h"
+#include "codegen.h"
 
 
 
@@ -47,6 +48,7 @@ typedef struct{
     TokenType token_type;
     DataType data_type;
     char *name;
+    TokenValue value;
 }PrecStackItem;
 
 
