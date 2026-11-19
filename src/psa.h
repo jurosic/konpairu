@@ -77,4 +77,4 @@ bool prec_stack_insert_shift(PrecStack *s);
 
 int reduce_rule(PrecStack *s);
 
-#endif PSA_H
+#endif

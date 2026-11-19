@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "token_buffer.h"
 
 
@@ -11,24 +12,10 @@
 
 
 
-//frees value of token if needed
-void free_token_content(Token* token){
-    if(!token) return;
-    
-    if((token->type == TOKEN_LIT_STR || token->type == TOKEN_INTERPOLATOR) && token->value.str_val){
-        free(token->value.str_val);
-    }
-    else if(token->type == TOKEN_ID && token->value.name){
-        free(token->value.name);
-    }
-    //add more here if needed
-}
-
 //frees value of all tokens in buffer if needed
-void free_all_token_content(TokenBuffer* buffer){
-
+void all_token_content_free(TokenBuffer* buffer){
     for(size_t i = 0; i < buffer->size; i++){
-        free_token_content(&(buffer->arr[i]));
+        token_free(buffer->arr[i]);
     }
 }
 
@@ -36,10 +23,9 @@ void free_all_token_content(TokenBuffer* buffer){
 void token_buffer_free(TokenBuffer* buffer){
     if(!buffer) return;
     
-    free_all_token_content(buffer);
+    all_token_content_free(buffer);
     free(buffer->arr);
     free(buffer);
-    buffer = NULL;
 }
 
 
@@ -69,7 +55,7 @@ void token_buffer_cap(TokenBuffer* buffer){
 
     //expand arr if full
     if(buffer->cap == buffer->size){
-        size_t new_cap = buffer->cap * EXPAND_BUFFER_MUL;
+         size_t new_cap = buffer->cap * EXPAND_BUFFER_MUL;
         Token* temp = realloc(buffer->arr, new_cap * sizeof(Token));
 
         if(!temp){
@@ -119,7 +105,7 @@ void load_next_token(Lexer* Lexer, TokenBuffer* buffer){
 void load_first_token(Lexer* Lexer, TokenBuffer* buffer){
     if(!buffer) return;
 
-    free_all_token_content(buffer);
+    all_token_content_free(buffer);
     buffer->arr[0] = lexer_next_token(Lexer);
     buffer->size = 1;
     //buffer->last_idx = 0;
@@ -128,16 +114,20 @@ void load_first_token(Lexer* Lexer, TokenBuffer* buffer){
 //sets token as the first token in buffer and changes size to 1
 void set_first_token(TokenBuffer* buffer, Token token){
     if(!buffer) return;
-    free_all_token_content(buffer);
+    all_token_content_free(buffer);
     buffer->arr[0] = token;
     buffer->size = 1;
 }
 
-//TO DO: better name
 //sets the last token as first, and changes size to 1
 void token_buffer_set_as_first(TokenBuffer* buffer){
     if(!buffer || buffer->size <= 1) return;
 
     Token temp = buffer->arr[buffer->size-1];
-   set_first_token(buffer, temp);
+    for(size_t i = 0; i < buffer->size-1; i++){
+        token_free(buffer->arr[i]);
+    }
+    buffer->arr[0] = temp;
+    buffer->size = 1;
+
 }

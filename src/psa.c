@@ -136,7 +136,7 @@ bool prec_stack_insert_shift(PrecStack *s){
     }    
 
     //shift item by 1 to the right
-    for(size_t i = s->top; i > target_idx; i--){
+    for(size_t i = s->top; i > (size_t)target_idx; i--){
         s->items[i] = s->items[i - 1];
     }
 
