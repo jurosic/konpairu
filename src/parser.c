@@ -45,7 +45,7 @@ typedef struct{
 
 //      helper funcs     //
 
-char* my_mystrdup(const char* s) {
+char* mystrdup(const char* s) {
     if (s == NULL) return NULL;
     size_t len = strlen(s) + 1;
     char *p = malloc(len);
