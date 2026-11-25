@@ -63,6 +63,13 @@ void sem_dispose(){
     bst_destroy(&global_symtable);
 }
 
+// Returns id of current scope (0 for global scope)
+int sem_get_scope_id(){
+    if (current_scope == NULL) return 0;
+
+    return current_scope->scope_id;
+}
+
 SymbolData* sem_get_variable(char *key){
     Scope *scope = current_scope;
 
@@ -81,6 +88,8 @@ SymbolData* sem_get_variable(char *key){
 // Checks if 'key' already exists in the CURRENT scope (Error 4).
 // If not, inserts it into the top AVL tree.
 int sem_define_variable(char *key, SymbolData val, bool is_mutable){
+    if(current_scope == NULL) return 99; // No global variables
+
     val.symbol_type = SYMBOL_VAR;
     val.data.var_data.is_mutable = is_mutable;
 

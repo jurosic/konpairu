@@ -19,6 +19,9 @@ void sem_leave_scope();
 // Destroys the global scope and cleans up everything at the end of compilation.
 void sem_dispose();
 
+// Returns id of current scope (0 for global scope)
+int sem_get_scope_id();
+
 // Called when parser reads: val x: Int = 5 (or var x = 5)
 // Checks if 'key' already exists in the CURRENT scope (Error 4).
 // If not, inserts it into the top AVL tree.
