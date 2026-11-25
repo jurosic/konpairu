@@ -23,9 +23,24 @@ bool is_numeric(DataType type){
     return false;
 }
 
+// Registers built-in functions of ifj26
+void register_built_in_functions(){
+    sem_define_function("print", TYPE_UNIT, 1, (DataType[]){ TYPE_ANY });
+    sem_define_function("readLine", TYPE_STRING, 0, NULL);
+    sem_define_function("readInt", TYPE_INT, 0, NULL);
+    sem_define_function("readDouble", TYPE_DOUBLE, 0, NULL);
+    sem_define_function("toStr", TYPE_STRING, 1, (DataType[]){ TYPE_ANY });
+    sem_define_function("toInt", TYPE_INT, 1, (DataType[]){ TYPE_DOUBLE });
+    sem_define_function("strLength", TYPE_INT, 1, (DataType[]){ TYPE_STRING });
+    sem_define_function("subStr", TYPE_STRING, 3, (DataType[]){ TYPE_STRING, TYPE_INT, TYPE_INT });
+    sem_define_function("ord", TYPE_INT, 2, (DataType[]){ TYPE_STRING, TYPE_INT });
+    sem_define_function("chr", TYPE_STRING, 1, (DataType[]){ TYPE_INT });
+}
+
 // Initializes the semantic module (creates the global scope tree).
 void sem_init(){
     bst_init(&global_symtable);
+    register_built_in_functions();
     current_scope = NULL;
     next_scope_id = 1; // Reset for clean unit testing
 }
@@ -224,7 +239,7 @@ int sem_check_function_call(char *key, int arg_count, DataType *arg_types, DataT
     if(func_data == NULL) return 3;
     if(func_data->data.func_data.param_count != arg_count) return 5;
     for(int i = 0; i < func_data->data.func_data.param_count; i++){
-        if(func_data->data.func_data.param_types[i] != arg_types[i]) return 5;
+        if(func_data->data.func_data.param_types[i] != arg_types[i] && func_data->data.func_data.param_types[i] != TYPE_ANY) return 5;
     }
 
     *out_return_type = func_data->type;
