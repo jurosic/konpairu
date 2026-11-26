@@ -445,6 +445,7 @@ void codegen_builtin_print(DataType arg_type) {
     } else {
         emit("WRITE GF@$tmp1\n");
     }
+	emit("PUSHS nil@nil\n");
 }
 
 void codegen_builtin_read_line(void) {
