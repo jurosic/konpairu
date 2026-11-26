@@ -225,7 +225,7 @@ Token read_number(Lexer* lexer) {
     scan_buffer[len] = '\0';
 
     //number can't end in 'e' or '_'
-    if (strchr("eE", scan_buffer[len-1]) && !was_underscore)
+    if (was_underscore || strchr("eE-+", scan_buffer[len-1]))
         is_invalid = 1;
 
     //return invalid if number is invalid
