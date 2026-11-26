@@ -110,6 +110,8 @@ void codegen_free(void) {
     buf_free(&out_buf);
     buf_free(&func_defs_buf);
     buf_free(&func_body_buf);
+	free(current_func_name);
+	current_func_name = NULL;
     active_buf = &out_buf;
 }
 
