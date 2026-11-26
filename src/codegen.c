@@ -110,6 +110,8 @@ void codegen_free(void) {
     buf_free(&out_buf);
     buf_free(&func_defs_buf);
     buf_free(&func_body_buf);
+	free(current_func_name);
+	current_func_name = NULL;
     active_buf = &out_buf;
 }
 
@@ -211,6 +213,10 @@ void codegen_push_string(const char *str) {
 
 void codegen_push_unit(void) {
     emit("PUSHS nil@nil\n");
+}
+
+void codegen_push_bool(bool val) {
+	emit("PUSHS bool@%s\n", val ? "true" : "false");
 }
 
 void codegen_int2float_top(void) {
@@ -426,8 +432,14 @@ void codegen_call_func(const char *func_name) {
 }
 
 void codegen_func_return(void) {
-    emit("POPFRAME\n");
-    emit("RETURN\n");
+	if (current_func_name == NULL) {
+		emit("POPS GF@$tmp1\n");
+		emit("POPFRAME\n");
+		emit("EXIT int@0\n");
+	} else {
+		emit("POPFRAME\n");
+		emit("RETURN\n");
+	}
 }
 
 void codegen_discard_stack_top(void) {
@@ -441,11 +453,17 @@ void codegen_builtin_print(DataType arg_type) {
     } else {
         emit("WRITE GF@$tmp1\n");
     }
+	emit("PUSHS nil@nil\n");
 }
 
 void codegen_builtin_read_line(void) {
-    emit("READ GF@$tmp1 string\n");
-    emit("PUSHS GF@$tmp1\n");
+	int id = codegen_next_label_id();
+	emit("READ GF@$tmp1 string\n");
+	emit("TYPE GF@$tmp2 GF@$tmp1\n");
+	emit("JUMPIFNEQ $readline_ok_%d GF@$tmp2 string@nil\n", id);
+	emit("MOVE GF@$tmp1 string@\n");
+	emit("LABEL $readline_ok_%d\n", id);
+	emit("PUSHS GF@$tmp1\n");
 }
 
 void codegen_builtin_read_int(void) {
@@ -470,4 +488,22 @@ void codegen_builtin_read_double(void) {
 
 void codegen_builtin_substr(void) {
     emit("CALL $$builtin_substr\n");
+}
+
+void codegen_builtin_strcmp(void) {
+	int id = codegen_next_label_id();
+	emit("POPS GF@$tmp2\n");
+	emit("POPS GF@$tmp1\n");
+	emit("LT GF@$tmp3 GF@$tmp1 GF@$tmp2\n");
+	emit("JUMPIFEQ $strcmp_lt_%d GF@$tmp3 bool@true\n", id);
+	emit("EQ GF@$tmp3 GF@$tmp1 GF@$tmp2\n");
+	emit("JUMPIFEQ $strcmp_eq_%d GF@$tmp3 bool@true\n", id);
+	emit("PUSHS int@1\n");
+	emit("JUMP $strcmp_end_%d\n", id);
+	emit("LABEL $strcmp_lt_%d\n", id);
+	emit("PUSHS int@-1\n");
+	emit("JUMP $strcmp_end_%d\n", id);
+	emit("LABEL $strcmp_eq_%d\n", id);
+	emit("PUSHS int@0\n");
+	emit("LABEL $strcmp_end_%d\n", id);
 }
