@@ -28,7 +28,7 @@ static void free_lexer_string(Lexer *lexer) {
 
 // --- TESTS ---
 void test_keywords_and_identifiers(void) {
-    Lexer *lexer = init_lexer_string("val var if then else def my_var-name _ __");
+    Lexer *lexer = init_lexer_string("val var if then else def my_var_name _ __");
     //doesn't include EVERY keyword cuz im too lazy and its the same checker,
     //so if a few work then probably all will work
     Token t;
@@ -40,7 +40,7 @@ void test_keywords_and_identifiers(void) {
     t = lexer_next_token(lexer); assert(t.type == TOKEN_DEF);
 
     t = lexer_next_token(lexer); assert(t.type == TOKEN_ID);
-    assert(strcmp(t.value.name, "my_var-name") == 0);
+    assert(strcmp(t.value.name, "my_var_name") == 0);
     token_free(t);
 
     t = lexer_next_token(lexer); assert(t.type == TOKEN_UNDERSCORE);
