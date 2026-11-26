@@ -220,7 +220,16 @@ int reduce_rule(PrecStack *s){
             
         }
     }
-
+    // <E> -> ( ) (Unit)
+    else if(handle_len == 2 &&
+            handle[0].sym_type == PREC_SYM_TERMINAL &&
+            handle[0].token_type == TOKEN_PAREN_L &&
+            handle[1].sym_type == PREC_SYM_TERMINAL &&
+            handle[1].token_type == TOKEN_PAREN_R){
+                
+        result_nonterm.data_type == TYPE_UNIT;
+        codegen_push_unit();
+    }
     //<E> -> ( <E> )
     else if(handle_len == 3 &&
             handle[0].sym_type == PREC_SYM_TERMINAL &&
