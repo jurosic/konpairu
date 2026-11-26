@@ -3,5 +3,7 @@ tests/bin
 
 ic26int*
 *.code
+*.ifj
 
 *.o
+
