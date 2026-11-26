@@ -149,8 +149,30 @@ void test_indents(void) {
 
     t = lexer_next_token(lexer); assert(t.type == TOKEN_EOF);
 
+
+    //TEST WINDOWS 
     free_lexer_string(lexer);
+    
     printf("PASSED: test_indents\n");
+}
+
+void test_windows_newlines(void) {
+    Token t;
+    Lexer *lexer = init_lexer_string(
+        "\r\n"
+        "def\r\n"
+        "var \r\n"
+        "val"
+    );
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_DEF);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_VAR);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_VAL);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_EOF);
+
+    printf("PASSED: test_windows_newlines\n");
 }
 
 void test_strings(void) {
@@ -405,6 +427,7 @@ int main(void) {
     test_main_annotation();
     test_numbers();
     test_indents();
+    test_windows_newlines();
     test_strings();
     test_comments();
     

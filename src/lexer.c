@@ -78,8 +78,9 @@ int scan_char(Lexer *lexer) {
 }
 
 // Sets lexer to the first character from it's current position than isn't whitespace
+// Whitespace is considered ' ' and '/r' (for windows files)
 void read_whitespace(Lexer* lexer) {
-    while (lexer->current_char == ' ')
+    while (lexer->current_char == ' ' || lexer->current_char == '\r')
         scan_char(lexer);
 }
 
@@ -110,7 +111,8 @@ Token read_indent(Lexer* lexer) {
     unsigned int indent_size = 0;
     // count the indent_weight by counting spaces from start of a new line
     // if a line is entirely empty, skip it and start counting from 0 again
-    while (scan_char(lexer) == ' ' || lexer->current_char == '\n' || lexer->current_char == ';') {
+    while (scan_char(lexer) == ' ' || lexer->current_char == '\r' ||
+                lexer->current_char == '\n' || lexer->current_char == ';') {
         if (lexer->current_char == ';') continue; //skip any ; among the whitespace of a start of a line,
 
         indent_size++;
@@ -486,7 +488,7 @@ Token lexer_next_token(Lexer *lexer) {
 
     // CHECK FOR WHITESPACE AND COMMENTS (also tokenize single '/')
     // logic is looped for cases like " /* */   //    \n  /**/ // "
-    while (lexer->current_char == ' ' || lexer->current_char == '/') {
+    while (lexer->current_char == ' ' || lexer->current_char == '\r' || lexer->current_char == '/') {
         //check if whitespace, pass whitespace
         read_whitespace(lexer);
 
