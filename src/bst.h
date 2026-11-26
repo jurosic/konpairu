@@ -9,7 +9,8 @@ typedef enum {
     TYPE_DOUBLE,    // float
     TYPE_STRING,    // string
     TYPE_UNIT,      // (void)
-    TYPE_BOOLEAN    // EXTENSION
+    TYPE_ANY,       // any type possible
+    TYPE_BOOLEAN    // return type for relation operations
 } DataType;
 
 typedef enum {
