@@ -455,8 +455,13 @@ void codegen_builtin_print(DataType arg_type) {
 }
 
 void codegen_builtin_read_line(void) {
-    emit("READ GF@$tmp1 string\n");
-    emit("PUSHS GF@$tmp1\n");
+	int id = codegen_next_label_id();
+	emit("READ GF@$tmp1 string\n");
+	emit("TYPE GF@$tmp2 GF@$tmp1\n");
+	emit("JUMPIFNEQ $readline_ok_%d GF@$tmp2 string@nil\n", id);
+	emit("MOVE GF@$tmp1 string@\n");
+	emit("LABEL $readline_ok_%d\n", id);
+	emit("PUSHS GF@$tmp1\n");
 }
 
 void codegen_builtin_read_int(void) {
