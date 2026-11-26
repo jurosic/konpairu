@@ -78,8 +78,9 @@ int scan_char(Lexer *lexer) {
 }
 
 // Sets lexer to the first character from it's current position than isn't whitespace
+// Whitespace is considered ' ' and '/r' (for windows files)
 void read_whitespace(Lexer* lexer) {
-    while (lexer->current_char == ' ')
+    while (lexer->current_char == ' ' || lexer->current_char == '\r')
         scan_char(lexer);
 }
 
@@ -91,14 +92,26 @@ void read_line_comment(Lexer* lexer) {
 
 // Reads and throws away the rest of a block comment (lexer still counts lines)
 void read_block_comment(Lexer* lexer) {
-    while (scan_char(lexer) != EOF) {
-        if (lexer->current_char == '*' && scan_char(lexer) == '/') {
-            //read next character to continue seamless reading
-            scan_char(lexer); 
-            return;
+    int depth = 1;
+    scan_char(lexer); // move past the opening '*' of '/*'
+
+    while (lexer->current_char != EOF && depth != 0) {
+        if (lexer->current_char == '/') {
+            if (scan_char(lexer) == '*') {
+                depth++;
+                scan_char(lexer);
+            }
+        } else if (lexer->current_char == '*') {
+            if (scan_char(lexer) == '/') {
+                depth--;
+                scan_char(lexer);
+            }
+        } else {
+            scan_char(lexer);
         }
     }
-    //EOF is captured by the main fetch function
+    //next char is already primed
+    //EOF is sorted out afterwards by the main fetch function
 }
 
 // Reads the indent count of the next non-empty line.
@@ -110,8 +123,9 @@ Token read_indent(Lexer* lexer) {
     unsigned int indent_size = 0;
     // count the indent_weight by counting spaces from start of a new line
     // if a line is entirely empty, skip it and start counting from 0 again
-    while (scan_char(lexer) == ' ' || lexer->current_char == '\n' || lexer->current_char == ';') {
-        if (lexer->current_char == ';') continue; //skip any ; among the whitespace of a start of a line,
+    while (scan_char(lexer) == ' ' || lexer->current_char == '\r' ||
+                lexer->current_char == '\n' || lexer->current_char == ';') {
+        if (lexer->current_char == ';' || lexer->current_char == '\r') continue; //skip any ; among the whitespace of a start of a line,
 
         indent_size++;
         if (indent_size >= LEXERLIMIT_INDENT_SIZE) {
@@ -120,6 +134,19 @@ Token read_indent(Lexer* lexer) {
             return create_token(TOKEN_INVALID);
         }
         if (lexer->current_char == '\n') indent_size = 0;
+    }
+
+    // DISGUSTING, but cleanest quick fix using ungetc and getc outside of scan_char() AND recursion
+    // fix for when a line is just a comment, creating a duplicate new line
+    if (lexer->current_char == '/') {
+        int next = fgetc(lexer->stream);
+        if (next == '/') {
+            lexer->current_char = next;
+            read_line_comment(lexer);
+            if (lexer->current_char == '\n') return read_indent(lexer);
+        } else if (next != EOF) {
+            ungetc(next, lexer->stream);
+        }
     }
 
     return create_token_newline(indent_size);
@@ -170,7 +197,6 @@ Token read_number(Lexer* lexer) {
         //(sign anywhere else counts as operator between numbers)
         if (lexer->current_char == '+' || lexer->current_char == '-') {
             if (tolower(scan_buffer[len-1]) != 'e') {
-                is_invalid = 1;
                 break;
             }
         }
@@ -199,7 +225,7 @@ Token read_number(Lexer* lexer) {
     scan_buffer[len] = '\0';
 
     //number can't end in 'e' or '_'
-    if (strchr("eE", scan_buffer[len-1]) && !was_underscore)
+    if (was_underscore || strchr("eE-+", scan_buffer[len-1]))
         is_invalid = 1;
 
     //return invalid if number is invalid
@@ -214,20 +240,23 @@ Token read_number(Lexer* lexer) {
         scan_char(lexer); //prime lexer
     }
 
-    //return int or double token after last check,
-    // check if non-zero numbers dont start with zero (invalid literal)
-    // ideally, i would check this before finishing scanning, but this is simpler
+    // return int or double token after last check,
+    // allow zero values (including 00, 0.0, 000.0) and non-zero values like 0.15,
+    // but reject non-zero literals with leading zeros like 00.15 or 012
+    int has_leading_zero_digit = (scan_buffer[0] == '0' &&
+                                    isdigit((unsigned char)scan_buffer[1]));
     if (is_double || is_exponent_form) {
         double val = atof(scan_buffer);
-        if ((val != 0 && scan_buffer[0] != '0') || val == 0)
+        if (val == 0.0 || !has_leading_zero_digit) {
             return create_token_double(val);
+        }
     } else {
         int val = atoi(scan_buffer);
-        if ((val != 0 && scan_buffer[0] != '0') || val == 0)
+        if (val == 0 || !has_leading_zero_digit) {
             return create_token_int(val);
+        }
     }
 
-    //number is non-zero but starts with zero, literal is invalid
     lexer->err_msg = "Invalid number literal: Non-zero literal cannot begin with a zero.";
     return create_token(TOKEN_INVALID);
 }
@@ -258,8 +287,8 @@ Token read_keyword_or_id_or_interpolator(Lexer* lexer) {
     scan_buffer[0] = lexer->current_char;
     int length = 1;
 
-    //read text (symbols - _ seem to be allowed in names in documentation)
-    while (isalnum(scan_char(lexer)) || lexer->current_char == '-' || lexer->current_char == '_') {
+    //read text (symbol _ seems to be allowed in names in documentation)
+    while (isalnum(scan_char(lexer)) || lexer->current_char == '_') {
         if (length >= LEXERLIMIT_ID_LENGTH){
             lexer->err_msg = "Identifier length limit exceeded.";
             return create_token(TOKEN_INVALID);
@@ -305,16 +334,29 @@ Token read_string(Lexer* lexer) {
         // found a correctly ended string
         if (lexer->current_char == '"' && escaped == 0) break;
 
-        if (length > LEXERLIMIT_STRLIT_LENGTH) {
-            // INVALID STRING, too long
+        if (length >= LEXERLIMIT_STRLIT_LENGTH) {
             lexer->err_msg = "String literal length limit exceeded.";
             return create_token(TOKEN_INVALID);
         }
-
-        //handle escaping properly even though it only matters for \"
-        escaped = (lexer->current_char == '\\' && escaped == 0);
-
-        scan_buffer[length++] = lexer->current_char;
+        if (escaped) {
+            switch (lexer->current_char) {
+                case 'n':  scan_buffer[length++] = '\n'; break;
+                case 't':  scan_buffer[length++] = '\t'; break;
+                case 'r':  scan_buffer[length++] = '\r'; break;
+                case '\\': scan_buffer[length++] = '\\'; break;
+                case '"':  scan_buffer[length++] = '"';  break;
+                case '\'': scan_buffer[length++] = '\''; break;
+                case '$':  scan_buffer[length++] = '$';  break;
+                default:
+                    lexer->err_msg = "Invalid escape sequence.";
+                    return create_token(TOKEN_INVALID);
+            }
+            escaped = 0;
+        } else if (lexer->current_char == '\\') {
+            escaped = 1;
+        } else {
+            scan_buffer[length++] = lexer->current_char;
+        }
         scan_char(lexer);
     }
     scan_buffer[length] = '\0';
@@ -356,7 +398,7 @@ Token read_multiline_string(Lexer* lexer) {
             quote_count = 0;
         }
 
-        if (length > LEXERLIMIT_STRLIT_LENGTH) {
+        if (length >= LEXERLIMIT_STRLIT_LENGTH) {
             // INVALID STRING, too long
             lexer->err_msg = "String literal length limit exceeded.";
             return create_token(TOKEN_INVALID);
@@ -486,7 +528,7 @@ Token lexer_next_token(Lexer *lexer) {
 
     // CHECK FOR WHITESPACE AND COMMENTS (also tokenize single '/')
     // logic is looped for cases like " /* */   //    \n  /**/ // "
-    while (lexer->current_char == ' ' || lexer->current_char == '/') {
+    while (lexer->current_char == ' ' || lexer->current_char == '\r' || lexer->current_char == '/') {
         //check if whitespace, pass whitespace
         read_whitespace(lexer);
 
@@ -529,6 +571,7 @@ Token lexer_next_token(Lexer *lexer) {
         if (lexer->current_char == '\n') {
             // in case of '\n' read 
             indent_token = read_indent(lexer);
+            if (indent_token.type == TOKEN_INVALID) return indent_token;
             last_indent_weight = indent_token.value.indent_weight;
         }
 
@@ -536,6 +579,8 @@ Token lexer_next_token(Lexer *lexer) {
         // just forget the newline token
         // (remove the check for EOF if parser wants to check for an empty line at end of file)
         // (the '\n' check is for when a ';' is followed by emptiness until end of line)
+        // also dont make another indent if last token was an indent
+        //  (fixes empty comment lines generating another indent)
         if (lexer->current_char != EOF && lexer->current_char != '\n')
             return indent_token;
     }
@@ -560,10 +605,10 @@ Token lexer_next_token(Lexer *lexer) {
         if (scan_char(lexer) == '"') {
             if (scan_char(lexer) == '"') {
                 return read_multiline_string(lexer);
+            // next character already primed from read_ml_string() btw
             }
+            // found exactly 2 quotes, return empty string token
 
-            //found exactly 2 quotes, return empty string token
-            scan_char(lexer); //prime lexer
             // Uses strdup even on an empty string for consistency, since every other instance of
             // a TOKEN_LIT_STR, created by this program, is also allocated and has to be freed.
             return create_token_str(my_strdup(""));
@@ -596,6 +641,7 @@ Lexer* lexer_init(FILE *stream) {
     lexer->current_char = fgetc(stream); // setup first character
     lexer->line = 1;
     lexer->column = 1;
+    lexer->err_msg = NULL;
 
     return lexer;
 }

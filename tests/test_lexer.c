@@ -28,7 +28,7 @@ static void free_lexer_string(Lexer *lexer) {
 
 // --- TESTS ---
 void test_keywords_and_identifiers(void) {
-    Lexer *lexer = init_lexer_string("val var if then else def my_var-name _ __");
+    Lexer *lexer = init_lexer_string("val var if then else def my_var_name _ __");
     //doesn't include EVERY keyword cuz im too lazy and its the same checker,
     //so if a few work then probably all will work
     Token t;
@@ -40,7 +40,7 @@ void test_keywords_and_identifiers(void) {
     t = lexer_next_token(lexer); assert(t.type == TOKEN_DEF);
 
     t = lexer_next_token(lexer); assert(t.type == TOKEN_ID);
-    assert(strcmp(t.value.name, "my_var-name") == 0);
+    assert(strcmp(t.value.name, "my_var_name") == 0);
     token_free(t);
 
     t = lexer_next_token(lexer); assert(t.type == TOKEN_UNDERSCORE);
@@ -102,6 +102,40 @@ void test_numbers(void) {
     printf("PASSED: test_numbers\n");
 }
 
+void test_numbers2(void) {
+    Lexer *lexer = init_lexer_string("1e2-2  2e2+1 00 000 0.00 00.0 00.000 0.15");
+
+    Token t;
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
+    assert(t.value.double_val == 1e2);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_SUB);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_INT);
+    assert(t.value.int_val == 2);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
+    assert(t.value.double_val == 2e2);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_ADD);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_INT);
+    assert(t.value.int_val == 1);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_INT);
+    assert(t.value.int_val == 0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_INT);
+    assert(t.value.int_val == 0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
+    assert(t.value.double_val == 0.0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
+    assert(t.value.double_val == 0.0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
+    assert(t.value.double_val == 0.0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
+    assert(t.value.double_val == 0.15);
+
+    free_lexer_string(lexer);
+    
+    printf("PASSED: test_numbers2\n");
+}
+
 void test_indents(void) {
     Token t;
     Lexer *lexer = init_lexer_string(
@@ -150,7 +184,27 @@ void test_indents(void) {
     t = lexer_next_token(lexer); assert(t.type == TOKEN_EOF);
 
     free_lexer_string(lexer);
+    
     printf("PASSED: test_indents\n");
+}
+
+void test_windows_newlines(void) {
+    Token t;
+    Lexer *lexer = init_lexer_string(
+        "\r\n"
+        "def\r\n"
+        "var \r\n"
+        "val"
+    );
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_DEF);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_VAR);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_VAL);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_EOF);
+
+    printf("PASSED: test_windows_newlines\n");
 }
 
 void test_strings(void) {
@@ -196,9 +250,9 @@ void test_comments(void) {
         "def //thiscomment \n"
         "//thiscomment var \n"
         "if /* block comment */ then \n"
-        "/**/while/* */do // \n"
+        "/**/while/***/do // \n"
         "def/* * //* * \n"
-        "return */ \n"
+        "return */*/ \n"
         "/*  do for def var \n"
         " var def for do  "
     );
@@ -206,7 +260,7 @@ void test_comments(void) {
     t = lexer_next_token(lexer); assert(t.type == TOKEN_DEF);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
 
-    t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
+    //t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
 
     t = lexer_next_token(lexer); assert(t.type == TOKEN_IF);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_THEN);
@@ -404,7 +458,9 @@ int main(void) {
     test_keywords_and_identifiers();
     test_main_annotation();
     test_numbers();
+    test_numbers2();
     test_indents();
+    test_windows_newlines();
     test_strings();
     test_comments();
     

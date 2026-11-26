@@ -8,3 +8,6 @@ ic26int*
 
 *.o
 
+ifj26
+*.dSYM
+*.dSYM/
