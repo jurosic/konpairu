@@ -430,8 +430,14 @@ void codegen_call_func(const char *func_name) {
 }
 
 void codegen_func_return(void) {
-    emit("POPFRAME\n");
-    emit("RETURN\n");
+	if (current_func_name == NULL) {
+		emit("POPS GF@$tmp1\n");
+		emit("POPFRAME\n");
+		emit("EXIT int@0\n");
+	} else {
+		emit("POPFRAME\n");
+		emit("RETURN\n");
+	}
 }
 
 void codegen_discard_stack_top(void) {
