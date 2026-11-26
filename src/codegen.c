@@ -475,3 +475,21 @@ void codegen_builtin_read_double(void) {
 void codegen_builtin_substr(void) {
     emit("CALL $$builtin_substr\n");
 }
+
+void codegen_builtin_strcmp(void) {
+	int id = codegen_next_label_id();
+	emit("POPS GF@$tmp2\n");
+	emit("POPS GF@$tmp1\n");
+	emit("LT GF@$tmp3 GF@$tmp1 GF@$tmp2\n");
+	emit("JUMPIFEQ $strcmp_lt_%d GF@$tmp3 bool@true\n", id);
+	emit("EQ GF@$tmp3 GF@$tmp1 GF@$tmp2\n");
+	emit("JUMPIFEQ $strcmp_eq_%d GF@$tmp3 bool@true\n", id);
+	emit("PUSHS int@1\n");
+	emit("JUMP $strcmp_end_%d\n", id);
+	emit("LABEL $strcmp_lt_%d\n", id);
+	emit("PUSHS int@-1\n");
+	emit("JUMP $strcmp_end_%d\n", id);
+	emit("LABEL $strcmp_eq_%d\n", id);
+	emit("PUSHS int@0\n");
+	emit("LABEL $strcmp_end_%d\n", id);
+}
