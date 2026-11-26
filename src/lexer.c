@@ -125,7 +125,7 @@ Token read_indent(Lexer* lexer) {
     // if a line is entirely empty, skip it and start counting from 0 again
     while (scan_char(lexer) == ' ' || lexer->current_char == '\r' ||
                 lexer->current_char == '\n' || lexer->current_char == ';') {
-        if (lexer->current_char == ';') continue; //skip any ; among the whitespace of a start of a line,
+        if (lexer->current_char == ';' || lexer->current_char == '\r') continue; //skip any ; among the whitespace of a start of a line,
 
         indent_size++;
         if (indent_size >= LEXERLIMIT_INDENT_SIZE) {
@@ -134,6 +134,19 @@ Token read_indent(Lexer* lexer) {
             return create_token(TOKEN_INVALID);
         }
         if (lexer->current_char == '\n') indent_size = 0;
+    }
+
+    // DISGUSTING, but cleanest quick fix using ungetc and getc outside of scan_char() AND recursion
+    // fix for when a line is just a comment, creating a duplicate new line
+    if (lexer->current_char == '/') {
+        int next = fgetc(lexer->stream);
+        if (next == '/') {
+            lexer->current_char = next;
+            read_line_comment(lexer);
+            if (lexer->current_char == '\n') return read_indent(lexer);
+        } else if (next != EOF) {
+            ungetc(next, lexer->stream);
+        }
     }
 
     return create_token_newline(indent_size);
@@ -543,6 +556,7 @@ Token lexer_next_token(Lexer *lexer) {
         if (lexer->current_char == '\n') {
             // in case of '\n' read 
             indent_token = read_indent(lexer);
+            if (indent_token.type == TOKEN_INVALID) return indent_token;
             last_indent_weight = indent_token.value.indent_weight;
         }
 
@@ -550,6 +564,8 @@ Token lexer_next_token(Lexer *lexer) {
         // just forget the newline token
         // (remove the check for EOF if parser wants to check for an empty line at end of file)
         // (the '\n' check is for when a ';' is followed by emptiness until end of line)
+        // also dont make another indent if last token was an indent
+        //  (fixes empty comment lines generating another indent)
         if (lexer->current_char != EOF && lexer->current_char != '\n')
             return indent_token;
     }
