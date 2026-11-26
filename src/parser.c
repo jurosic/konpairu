@@ -399,7 +399,7 @@ void parse_assign(Parser *p){
         parse_error(p, sem_res, "Semantic error in assigment");
     }
 
-    int scope_id = sem_get_scope_id();
+    int scope_id = sem_get_scope_id(var_name);
     codegen_pop_to_var(var_name, scope_id);
 
 }
@@ -533,7 +533,7 @@ static void parse_var(Parser *p){
     }
 
     //codegen
-    int scope_id = sem_get_scope_id();
+    int scope_id = sem_get_scope_id(var_name);
     codegen_def_var(var_name, scope_id);
     codegen_pop_to_var(var_name, scope_id);
 }
@@ -666,7 +666,7 @@ static void parse_func(Parser *p){
 
     sem_enter_scope();
 
-    int scope_id = sem_get_scope_id();
+    int scope_id = sem_get_scope_id(func_name);
 
     //register parameters to sem
     for(int i = 0; i < param_count; i++){
