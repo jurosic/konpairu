@@ -605,10 +605,10 @@ Token lexer_next_token(Lexer *lexer) {
         if (scan_char(lexer) == '"') {
             if (scan_char(lexer) == '"') {
                 return read_multiline_string(lexer);
+            // next character already primed from read_ml_string() btw
             }
+            // found exactly 2 quotes, return empty string token
 
-            //found exactly 2 quotes, return empty string token
-            scan_char(lexer); //prime lexer
             // Uses strdup even on an empty string for consistency, since every other instance of
             // a TOKEN_LIT_STR, created by this program, is also allocated and has to be freed.
             return create_token_str(my_strdup(""));
