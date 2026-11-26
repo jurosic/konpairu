@@ -213,6 +213,10 @@ void codegen_push_unit(void) {
     emit("PUSHS nil@nil\n");
 }
 
+void codegen_push_bool(bool val) {
+	emit("PUSHS bool@%s\n", val ? "true" : "false");
+}
+
 void codegen_int2float_top(void) {
     emit("INT2FLOATS\n");
 }

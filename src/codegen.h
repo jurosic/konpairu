@@ -34,7 +34,7 @@ void codegen_push_int(int val);
 void codegen_push_double(double val);
 void codegen_push_string(const char *str);
 void codegen_push_unit(void);
-
+void codegen_push_bool(bool val);
 
 // --- Expressions & Conversions ---
 // Converts the top of the stack from Int to Float (INT2FLOATS)
