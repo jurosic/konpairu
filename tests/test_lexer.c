@@ -102,6 +102,24 @@ void test_numbers(void) {
     printf("PASSED: test_numbers\n");
 }
 
+void test_numbers2(void) {
+    Lexer *lexer = init_lexer_string("1e2-2  2e2+1");
+
+    Token t;
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
+    assert(t.value.double_val == 1e2);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_SUB);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_INT);
+    assert(t.value.int_val == 2);
+
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
+    assert(t.value.double_val == 2e2);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_ADD);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_INT);
+    assert(t.value.int_val == 1);
+
+}
+
 void test_indents(void) {
     Token t;
     Lexer *lexer = init_lexer_string(
@@ -427,6 +445,7 @@ int main(void) {
     test_keywords_and_identifiers();
     test_main_annotation();
     test_numbers();
+    test_numbers2();
     test_indents();
     test_windows_newlines();
     test_strings();

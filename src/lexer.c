@@ -197,7 +197,6 @@ Token read_number(Lexer* lexer) {
         //(sign anywhere else counts as operator between numbers)
         if (lexer->current_char == '+' || lexer->current_char == '-') {
             if (tolower(scan_buffer[len-1]) != 'e') {
-                is_invalid = 1;
                 break;
             }
         }
