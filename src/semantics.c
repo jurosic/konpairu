@@ -1,5 +1,5 @@
 #include "semantics.h"
-#include "bst.h"
+#include "symtable.h"
 #include "token.h"
 #include <stdlib.h>
 #include <stdbool.h>

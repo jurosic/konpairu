@@ -2,7 +2,7 @@
 #define CODEGEN_H
 
 #include <stdbool.h>
-#include "bst.h"
+#include "symtable.h"
 #include "token.h"
 
 // Initializes the code internal buffer and emits the .IFJcode26 header.
