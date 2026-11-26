@@ -218,9 +218,9 @@ void test_comments(void) {
         "def //thiscomment \n"
         "//thiscomment var \n"
         "if /* block comment */ then \n"
-        "/**/while/* */do // \n"
+        "/**/while/***/do // \n"
         "def/* * //* * \n"
-        "return */ \n"
+        "return */*/ \n"
         "/*  do for def var \n"
         " var def for do  "
     );
@@ -234,7 +234,8 @@ void test_comments(void) {
     t = lexer_next_token(lexer); assert(t.type == TOKEN_THEN);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
 
-    t = lexer_next_token(lexer); assert(t.type == TOKEN_WHILE);
+    t = lexer_next_token(lexer); printf(" %i ", t.type);
+    assert(t.type == TOKEN_WHILE);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_DO);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
 

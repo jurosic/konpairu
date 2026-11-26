@@ -92,14 +92,26 @@ void read_line_comment(Lexer* lexer) {
 
 // Reads and throws away the rest of a block comment (lexer still counts lines)
 void read_block_comment(Lexer* lexer) {
-    while (scan_char(lexer) != EOF) {
-        if (lexer->current_char == '*' && scan_char(lexer) == '/') {
-            //read next character to continue seamless reading
-            scan_char(lexer); 
-            return;
+    int depth = 1;
+    scan_char(lexer); // move past the opening '*' of '/*'
+
+    while (lexer->current_char != EOF && depth != 0) {
+        if (lexer->current_char == '/') {
+            if (scan_char(lexer) == '*') {
+                depth++;
+                scan_char(lexer);
+            }
+        } else if (lexer->current_char == '*') {
+            if (scan_char(lexer) == '/') {
+                depth--;
+                scan_char(lexer);
+            }
+        } else {
+            scan_char(lexer);
         }
     }
-    //EOF is captured by the main fetch function
+    //next char is already primed
+    //EOF is sorted out afterwards by the main fetch function
 }
 
 // Reads the indent count of the next non-empty line.
