@@ -1,7 +1,7 @@
 #ifndef SEMANTICS_H
 #define SEMANTICS_H
 
-#include "bst.h"
+#include "symtable.h"
 #include "token.h"
 #include <stdbool.h>
 

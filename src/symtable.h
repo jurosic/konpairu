@@ -1,5 +1,5 @@
-#ifndef BST_H
-#define BST_H
+#ifndef SYMTABLE_H
+#define SYMTABLE_H
 
 #include <stdbool.h>
 
