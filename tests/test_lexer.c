@@ -103,7 +103,7 @@ void test_numbers(void) {
 }
 
 void test_numbers2(void) {
-    Lexer *lexer = init_lexer_string("1e2-2  2e2+1");
+    Lexer *lexer = init_lexer_string("1e2-2  2e2+1 00 000 0.00 00.0 00.000 0.15");
 
     Token t;
     t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
@@ -118,6 +118,22 @@ void test_numbers2(void) {
     t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_INT);
     assert(t.value.int_val == 1);
 
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_INT);
+    assert(t.value.int_val == 0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_INT);
+    assert(t.value.int_val == 0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
+    assert(t.value.double_val == 0.0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
+    assert(t.value.double_val == 0.0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
+    assert(t.value.double_val == 0.0);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_LIT_DOUBLE);
+    assert(t.value.double_val == 0.15);
+
+    free_lexer_string(lexer);
+    
+    printf("PASSED: test_numbers2\n");
 }
 
 void test_indents(void) {
@@ -167,8 +183,6 @@ void test_indents(void) {
 
     t = lexer_next_token(lexer); assert(t.type == TOKEN_EOF);
 
-
-    //TEST WINDOWS 
     free_lexer_string(lexer);
     
     printf("PASSED: test_indents\n");
@@ -252,8 +266,7 @@ void test_comments(void) {
     t = lexer_next_token(lexer); assert(t.type == TOKEN_THEN);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
 
-    t = lexer_next_token(lexer); printf(" %i ", t.type);
-    assert(t.type == TOKEN_WHILE);
+    t = lexer_next_token(lexer); assert(t.type == TOKEN_WHILE);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_DO);
     t = lexer_next_token(lexer); assert(t.type == TOKEN_NEWLINE);
 

@@ -240,20 +240,23 @@ Token read_number(Lexer* lexer) {
         scan_char(lexer); //prime lexer
     }
 
-    //return int or double token after last check,
-    // check if non-zero numbers dont start with zero (invalid literal)
-    // ideally, i would check this before finishing scanning, but this is simpler
+    // return int or double token after last check,
+    // allow zero values (including 00, 0.0, 000.0) and non-zero values like 0.15,
+    // but reject non-zero literals with leading zeros like 00.15 or 012
+    int has_leading_zero_digit = (scan_buffer[0] == '0' &&
+                                    isdigit((unsigned char)scan_buffer[1]));
     if (is_double || is_exponent_form) {
         double val = atof(scan_buffer);
-        if ((val != 0 && scan_buffer[0] != '0') || val == 0)
+        if (val == 0.0 || !has_leading_zero_digit) {
             return create_token_double(val);
+        }
     } else {
         int val = atoi(scan_buffer);
-        if ((val != 0 && scan_buffer[0] != '0') || val == 0)
+        if (val == 0 || !has_leading_zero_digit) {
             return create_token_int(val);
+        }
     }
 
-    //number is non-zero but starts with zero, literal is invalid
     lexer->err_msg = "Invalid number literal: Non-zero literal cannot begin with a zero.";
     return create_token(TOKEN_INVALID);
 }
