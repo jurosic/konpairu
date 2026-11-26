@@ -641,6 +641,7 @@ Lexer* lexer_init(FILE *stream) {
     lexer->current_char = fgetc(stream); // setup first character
     lexer->line = 1;
     lexer->column = 1;
+    lexer->err_msg = NULL;
 
     return lexer;
 }
