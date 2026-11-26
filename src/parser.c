@@ -78,6 +78,9 @@ static void parse_error(Parser *p, int exit_code, const char *msg){
     if(p && p->buffer){
         token_buffer_free(p->buffer);
     }
+    if(p && p->lexer){
+        lexer_free(p->lexer);
+    }
     sem_dispose();
     codegen_free();
     exit(exit_code);
