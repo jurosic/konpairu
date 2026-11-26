@@ -334,16 +334,29 @@ Token read_string(Lexer* lexer) {
         // found a correctly ended string
         if (lexer->current_char == '"' && escaped == 0) break;
 
-        if (length > LEXERLIMIT_STRLIT_LENGTH) {
-            // INVALID STRING, too long
+        if (length >= LEXERLIMIT_STRLIT_LENGTH) {
             lexer->err_msg = "String literal length limit exceeded.";
             return create_token(TOKEN_INVALID);
         }
-
-        //handle escaping properly even though it only matters for \"
-        escaped = (lexer->current_char == '\\' && escaped == 0);
-
-        scan_buffer[length++] = lexer->current_char;
+        if (escaped) {
+            switch (lexer->current_char) {
+                case 'n':  scan_buffer[length++] = '\n'; break;
+                case 't':  scan_buffer[length++] = '\t'; break;
+                case 'r':  scan_buffer[length++] = '\r'; break;
+                case '\\': scan_buffer[length++] = '\\'; break;
+                case '"':  scan_buffer[length++] = '"';  break;
+                case '\'': scan_buffer[length++] = '\''; break;
+                case '$':  scan_buffer[length++] = '$';  break;
+                default:
+                    lexer->err_msg = "Invalid escape sequence.";
+                    return create_token(TOKEN_INVALID);
+            }
+            escaped = 0;
+        } else if (lexer->current_char == '\\') {
+            escaped = 1;
+        } else {
+            scan_buffer[length++] = lexer->current_char;
+        }
         scan_char(lexer);
     }
     scan_buffer[length] = '\0';
@@ -385,7 +398,7 @@ Token read_multiline_string(Lexer* lexer) {
             quote_count = 0;
         }
 
-        if (length > LEXERLIMIT_STRLIT_LENGTH) {
+        if (length >= LEXERLIMIT_STRLIT_LENGTH) {
             // INVALID STRING, too long
             lexer->err_msg = "String literal length limit exceeded.";
             return create_token(TOKEN_INVALID);
