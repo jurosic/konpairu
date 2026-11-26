@@ -12,6 +12,7 @@
 
 
 
+#define MAX_PREC_STACKS       64    //maximum amount of PrecStacks active at once
 #define MAX_PARAM_COUNT       64    //maximum of alloved parameters per function 
 #define TOKEN_BUFFER_INIT_CAP 8     //capacity of TokenBuffer at start
 
@@ -19,7 +20,7 @@
 //      helper struct      //
 //helper struct for function parameters
 typedef struct{
-    char *name;
+    char name[LEXERLIMIT_ID_LENGTH + 1];
     DataType type;
 }FuncParam;
 
@@ -30,6 +31,8 @@ typedef struct{
     TokenBuffer *buffer;
     bool was_mainfunc;
     DataType curr_func_ret_type;
+    PrecStack *curr_stacks[MAX_PREC_STACKS];
+    unsigned curr_stack_count;
 }Parser;
 
 
@@ -72,15 +75,24 @@ char* mystrdup(const char* s) {
 
 //exits compiler immediately with error msg & exit_code
 static void parse_error(Parser *p, int exit_code, const char *msg){
-    int line = (p && p->lexer) ? p->lexer->line : 0;
-    fprintf(stderr, "Mistake at line %d: %s\n", line, msg);
+    unsigned line = 0;
 
-    if(p && p->buffer){
-        token_buffer_free(p->buffer);
+    if(p){
+        if(p->buffer){
+            token_buffer_free(p->buffer);
+        }
+        if(p->lexer){
+            line = p->lexer->line;
+            lexer_free(p->lexer);
+        }
+        while(p->curr_stack_count > 0){
+            p->curr_stack_count--;
+            prec_stack_free(p->curr_stacks[p->curr_stack_count]);
+            
+        }
     }
-    if(p && p->lexer){
-        lexer_free(p->lexer);
-    }
+
+    fprintf(stderr, "Mistake at line %d: %s\n", line, msg);
     sem_dispose();
     codegen_free();
     exit(exit_code);
@@ -150,6 +162,8 @@ static void expect(Parser *p, TokenType type){
 
 DataType parse_expression(Parser *p){
     PrecStack *stack = prec_stack_init();
+    p->curr_stacks[p->curr_stack_count++] = stack;
+
     if(!stack){
         parse_error(p, INTERNAL_ERR_CODE, "Memory allocation failed");
     }
@@ -162,7 +176,6 @@ DataType parse_expression(Parser *p){
         if(curr->type == TOKEN_ID && peek_token(p)->type == TOKEN_PAREN_L){
             PrecTableIndex top_term_idx = prec_stack_top_terminal_index(stack);
             if(prec_table[top_term_idx][PT_OPERAND] != '<'){
-                prec_stack_free(stack);
                 parse_error(p, SYNTAX_ERR_CODE, "Unexpected function call in expression");
             }
 
@@ -175,7 +188,6 @@ DataType parse_expression(Parser *p){
             };
 
             if(!prec_stack_push(stack, item)){
-                prec_stack_free(stack);
                 parse_error(p, INTERNAL_ERR_CODE, "Memory allocation failed");
             }
             continue;
@@ -189,7 +201,6 @@ DataType parse_expression(Parser *p){
         switch (rel){
             case '<':{
                 if(!prec_stack_insert_shift(stack)){
-                    prec_stack_free(stack);
                     parse_error(p, INTERNAL_ERR_CODE, "Memory allocation failed in precedence stack");
                 }
                 PrecStackItem item = {
@@ -227,7 +238,6 @@ DataType parse_expression(Parser *p){
                         if(curr->type == TOKEN_LIT_STR){
                             free(item.value.str_val);
                         }
-                        prec_stack_free(stack);
                         parse_error(p, INTERNAL_ERR_CODE, "Memory allocation failed");
                     }
                 advance(p);
@@ -237,7 +247,6 @@ DataType parse_expression(Parser *p){
             case '>':{
                 int err = reduce_rule(stack);
                 if(err != 0){
-                    prec_stack_free(stack);
                     parse_error(p, err, "Syntax or semantic error in expression");
                 }
                 break;
@@ -250,7 +259,6 @@ DataType parse_expression(Parser *p){
                 else{
                     int err = reduce_rule(stack);
                     if(err != 0){
-                        prec_stack_free(stack);
                         parse_error(p, err, "Syntax or semantic error at end of expression");
                     }
                 }
@@ -258,7 +266,6 @@ DataType parse_expression(Parser *p){
             }
 
             default:
-                prec_stack_free(stack);
                 parse_error(p, SYNTAX_ERR_CODE, "Syntax error in expression");
                 break;
             
@@ -267,8 +274,9 @@ DataType parse_expression(Parser *p){
     }
 
     DataType final_type = stack->items[1].data_type;
-    prec_stack_free(stack);
 
+    p->curr_stack_count--;
+    prec_stack_free(stack);
     return final_type;
 }
 
@@ -278,14 +286,13 @@ DataType parse_func_call(Parser *p){
         parse_error(p, SYNTAX_ERR_CODE, "Expected function identifier");
     }
 
-    char *func_name = mystrdup(curr_token(p)->value.name);
-    if(!func_name){
-        parse_error(p, INTERNAL_ERR_CODE, "Memory allocation failed");
+    char func_name[LEXERLIMIT_ID_LENGTH + 1] = {0};
+    if(curr_token(p)->value.name){
+        strcpy(func_name, curr_token(p)->value.name);
     }
     advance(p);
 
     if(!match(p, TOKEN_PAREN_L)){
-        free(func_name);
         parse_error(p, SYNTAX_ERR_CODE, "Expected '(' after function identifier");
     }
 
@@ -295,7 +302,6 @@ DataType parse_func_call(Parser *p){
     if(curr_token(p)->type != TOKEN_PAREN_R){
         while(true){
             if(arg_count >= MAX_PARAM_COUNT){
-                free(func_name);
                 parse_error(p, INTERNAL_ERR_CODE, "Exceeded maximum amount of function arguments");
             }
 
@@ -313,14 +319,12 @@ DataType parse_func_call(Parser *p){
     }
 
     if(!match(p, TOKEN_PAREN_R)){
-        free(func_name);
         parse_error(p, SYNTAX_ERR_CODE, "Expected ')' after function arguments");
     }
 
     DataType return_type;
     int sem_res = sem_check_function_call(func_name, arg_count, arg_types, &return_type);
      if(sem_res != 0){
-        free(func_name);
         parse_error(p, sem_res, "SYN or SEM error");
     }
 
@@ -342,7 +346,6 @@ DataType parse_func_call(Parser *p){
     else if(strcmp(func_name, "subStr") == 0)     codegen_builtin_substr();
     else    codegen_call_func(func_name);
 
-    free(func_name);
     return return_type;
 }
 
@@ -374,10 +377,11 @@ void parse_assign(Parser *p){
         parse_error(p, SYNTAX_ERR_CODE, "Expected variable identifier in assigment");
     }
 
-    char *var_name = mystrdup(curr_token(p)->value.name);
-    if(!var_name){
-        parse_error(p, INTERNAL_ERR_CODE, "Memory allocation failed");
-    } 
+    char var_name[LEXERLIMIT_ID_LENGTH + 1] = {0};
+    if(curr_token(p)->value.name){
+        strcpy(var_name, curr_token(p)->value.name);
+    }
+
     advance(p);
 
     expect(p, TOKEN_ASSIGN);
@@ -392,13 +396,11 @@ void parse_assign(Parser *p){
 
     int sem_res = sem_check_assignment(var_name, expr_type);
     if(sem_res != 0){
-        free(var_name);
         parse_error(p, sem_res, "Semantic error in assigment");
     }
 
     int scope_id = sem_get_scope_id();
     codegen_pop_to_var(var_name, scope_id);
-    free(var_name);
 
 }
 
@@ -473,10 +475,11 @@ static void parse_var(Parser *p){
         parse_error(p, SYNTAX_ERR_CODE, "Expected variable identifier in declaration");
     }
 
-    char *var_name = mystrdup(curr_token(p)->value.name);
-    if(!var_name){
-        parse_error(p, INTERNAL_ERR_CODE, "Memory allocation failed");
+    char var_name[LEXERLIMIT_ID_LENGTH + 1] = {0};
+    if(curr_token(p)->value.name){
+        strcpy(var_name, curr_token(p)->value.name);
     }
+
     advance(p);
 
     //optional var type
@@ -485,10 +488,7 @@ static void parse_var(Parser *p){
         if(     match(p, TOKEN_INT))    expl_type = TYPE_INT;
         else if(match(p, TOKEN_DOUBLE)) expl_type = TYPE_DOUBLE;
         else if(match(p, TOKEN_STRING)) expl_type = TYPE_STRING;
-        else {
-            free(var_name);
-            parse_error(p, SYNTAX_ERR_CODE, "Unknown data type");
-        }
+        else    parse_error(p, SYNTAX_ERR_CODE, "Unknown data type");
     }
 
     expect(p, TOKEN_ASSIGN);
@@ -508,7 +508,6 @@ static void parse_var(Parser *p){
             codegen_int2float_top();
         }
         else{
-            free(var_name);
             parse_error(p,SEM_ERR_CODE_DEF_TYPE, "Variable declared type differs from expression type");
         }
     }
@@ -518,7 +517,6 @@ static void parse_var(Parser *p){
     }
 
     if(final_type == TYPE_UNIT){
-        free(var_name);
         parse_error(p, SEM_ERR_CODE_DEF_TYPE, "Variable cannot be of type Unit");
     }
 
@@ -531,7 +529,6 @@ static void parse_var(Parser *p){
 
     int sem_res = sem_define_variable(var_name, sym, is_mutable);
     if(sem_res != 0){
-        free(var_name);
         parse_error(p, sem_res, "Semantics error durring declaration");
     }
 
@@ -539,7 +536,6 @@ static void parse_var(Parser *p){
     int scope_id = sem_get_scope_id();
     codegen_def_var(var_name, scope_id);
     codegen_pop_to_var(var_name, scope_id);
-    free(var_name);
 }
 
 //parses whole function
@@ -562,16 +558,15 @@ static void parse_func(Parser *p){
         parse_error(p, SYNTAX_ERR_CODE, "Expected function name");
     }
 
-    char *func_name = mystrdup(curr_token(p)->value.name);
-    if(!func_name){
-        parse_error(p, INTERNAL_ERR_CODE, "Memory allocation failed");
+    char func_name[LEXERLIMIT_ID_LENGTH + 1] = {0};
+    if(curr_token(p)->value.name){
+        strcpy(func_name, curr_token(p)->value.name);
     }
     advance(p);
 
 
     //params parse
     if(!match(p, TOKEN_PAREN_L)){
-        free(func_name);
         parse_error(p, SYNTAX_ERR_CODE, "Expected '(");
     }
 
@@ -583,51 +578,28 @@ static void parse_func(Parser *p){
         while(true){
             //error if to many parameters
             if(param_count >= MAX_PARAM_COUNT){
-                for(int i = 0; i < param_count; i++){
-                    free(param[i].name);
-                }
-                free(func_name);
                 parse_error(p, INTERNAL_ERR_CODE, "Too many parameters for function");
             }
 
             //erorr if no name
             if(curr_token(p)->type != TOKEN_ID){
-                for(int i = 0; i < param_count; i++){
-                    free(param[i].name);
-                }
-                free(func_name);
                 parse_error(p, SYNTAX_ERR_CODE, "Expected parameter name");
             }
 
-            param[param_count].name = mystrdup(curr_token(p)->value.name);
-            if(!param[param_count].name){
-                for(int i = 0; i < param_count; i++){
-                    free(param[i].name);
-                }
-                free(func_name);
-                parse_error(p, INTERNAL_ERR_CODE, "Memory allocation failed");
+            memset(param[param_count].name, 0, LEXERLIMIT_ID_LENGTH + 1);
+            if(curr_token(p)->value.name){
+                strcpy(param[param_count].name, curr_token(p)->value.name);
             }
+            
 
             advance(p);
-            if(!match(p, TOKEN_COLON)){
-                for(int i = 0; i < param_count; i++){
-                    free(param[i].name);
-                }
-                free(func_name);
-                parse_error(p, SYNTAX_ERR_CODE, "Expected ':'");
-            }
+            expect(p, TOKEN_COLON);
 
             if(match(p, TOKEN_INT))         param[param_count].type = TYPE_INT;
             else if(match(p, TOKEN_DOUBLE))    param[param_count].type = TYPE_DOUBLE;
             else if(match(p, TOKEN_STRING))    param[param_count].type = TYPE_STRING;
             else if(match(p, TOKEN_UNIT))    param[param_count].type = TYPE_UNIT;
-            else{
-                for(int i = 0; i < param_count; i++){
-                    free(param[i].name);
-                }
-                free(func_name);
-                parse_error(p, SYNTAX_ERR_CODE, "Unknown parameter type");
-            }
+            else    parse_error(p, SYNTAX_ERR_CODE, "Unknown parameter type");
 
             param_count++;
 
@@ -650,29 +622,15 @@ static void parse_func(Parser *p){
         else if(match(p, TOKEN_DOUBLE)) return_type = TYPE_DOUBLE;
         else if(match(p, TOKEN_STRING)) return_type = TYPE_STRING;
         else if(match(p, TOKEN_UNIT))   return_type = TYPE_UNIT;
-        else {
-            for(int i = 0; i < param_count; i++){
-                    free(param[i].name);
-            }
-            free(func_name);
-            parse_error(p, SYNTAX_ERR_CODE, "Unknown function return type");
-        }
+        else    parse_error(p, SYNTAX_ERR_CODE, "Unknown function return type");
     }
 
     //semantics check for main
     if(is_main){
         if(param_count > 0){
-            for(int i = 0; i < param_count; i++){
-                    free(param[i].name);
-            }
-            free(func_name);
             parse_error(p, SEM_ERR_CODE_ARGS, "@main function has too many parameters");
         }
         if(return_type != TYPE_UNIT){
-            for(int i = 0; i < param_count; i++){
-                    free(param[i].name);
-            }
-            free(func_name);
             parse_error(p, SEM_ERR_CODE_DEF_TYPE, "@main function must have return type Unit");
         }
     }
@@ -682,10 +640,6 @@ static void parse_func(Parser *p){
     if(param_count > 0){
         param_types = malloc(param_count * sizeof(DataType));
         if(!param_types){
-            for(int i = 0; i < param_count; i++){
-                    free(param[i].name);
-            }
-            free(func_name);
             parse_error(p, INTERNAL_ERR_CODE, "Memory allocation failed");
         }
         for(int i = 0; i < param_count; i++){
@@ -697,35 +651,18 @@ static void parse_func(Parser *p){
     int sem_res = sem_define_function(func_name, return_type, param_count, param_types);
     if(param_types)     free(param_types);
     if(sem_res != 0){
-        for(int i = 0; i < param_count; i++){
-                    free(param[i].name);
-        }
-        free(func_name);
         parse_error(p, sem_res, "Semantics error in function definition");
     }
 
 
     expect(p, TOKEN_ASSIGN);
-    if(is_main){
-        if(codegen_main_start() != 0){
-            for(int i = 0; i < param_count; i++){
-                free(param[i].name);
-        }
-        free(func_name);
-        parse_error(p, INTERNAL_ERR_CODE, "Codegen main start failed");
-        }
+    if(is_main && codegen_main_start() != 0){
+            parse_error(p, INTERNAL_ERR_CODE, "Codegen main start failed");
     }
 
-    else{
-        if(codegen_func_start(func_name) != 0){
-            for(int i = 0; i < param_count; i++){
-                free(param[i].name);
-        }
-        free(func_name);
-        parse_error(p, INTERNAL_ERR_CODE, "Codegen func start failed");
-        }
+    else if(codegen_func_start(func_name) != 0){
+            parse_error(p, INTERNAL_ERR_CODE, "Codegen func start failed");
     }
-    free(func_name);
 
     sem_enter_scope();
 
@@ -741,9 +678,6 @@ static void parse_func(Parser *p){
 
         int p_res = sem_define_variable(param[i].name, param_sym, false);
         if(p_res != 0){
-            for(int j = i; j < param_count; j++){
-                    free(param[j].name);
-            }
             parse_error(p, p_res, "Semantic error with registering parameter of func");
         }
     }
@@ -751,7 +685,6 @@ static void parse_func(Parser *p){
     //codegen params
     for(int i = param_count - 1; i >= 0; i--){
         codegen_func_param(param[i].name, scope_id);
-        free(param[i].name);
     }
 
     p->curr_func_ret_type = return_type;
@@ -901,6 +834,7 @@ int parse(Lexer *lexer){
     p.was_mainfunc = false;
     p.curr_func_ret_type = TYPE_UNIT;
     p.buffer = token_buffer_init(TOKEN_BUFFER_INIT_CAP);   //capacity of TokenBuffer at start
+    p.curr_stack_count = 0;
 
     if(!p.buffer){
         parse_error(&p, INTERNAL_ERR_CODE, "Memory allocation failed");
