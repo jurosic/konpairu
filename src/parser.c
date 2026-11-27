@@ -656,11 +656,11 @@ static void parse_func(Parser *p){
 
 
     expect(p, TOKEN_ASSIGN);
-    if(is_main && codegen_main_start() != 0){
+    if(is_main) {
+		if (codegen_main_start() != 0){
             parse_error(p, INTERNAL_ERR_CODE, "Codegen main start failed");
-    }
-
-    else if(codegen_func_start(func_name) != 0){
+    	}
+	} else if(codegen_func_start(func_name) != 0){
             parse_error(p, INTERNAL_ERR_CODE, "Codegen func start failed");
     }
 
