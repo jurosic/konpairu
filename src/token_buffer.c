@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include "token_buffer.h"
-
+#include "token.h"
 
 #define EXPAND_BUFFER_MUL   2   //when full, multiply capacity
 #define SHRINK_BUFFER_MUL   2   //when mostly empty, divide capacity
