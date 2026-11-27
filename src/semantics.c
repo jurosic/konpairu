@@ -79,7 +79,7 @@ void sem_dispose(){
 }
 
 // Returns id of current scope (0 for global scope)
-// Returns 99 if nothing is found
+// Returns current_scope->scope_id if nothing is found
 int sem_get_scope_id(char *key){
     Scope *scope = current_scope;
 
@@ -89,9 +89,9 @@ int sem_get_scope_id(char *key){
         scope = scope->outer;
     }
 
-    if(bst_search(global_symtable, key)) return 0;
+    if(!bst_search(global_symtable, key)) return 0;
 
-    return 99;
+    return current_scope->scope_id;
 }
 
 SymbolData* sem_get_variable(char *key){
