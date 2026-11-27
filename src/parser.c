@@ -36,7 +36,6 @@ typedef struct{
 }Parser;
 
 
-
 //      forward declarations        //
 static void parse_error(Parser *p, int exit_code, const char *msg);
 static Token* curr_token(Parser *p);
@@ -63,7 +62,7 @@ static void parse_statement(Parser *p, unsigned curr_indent);
 //      helper funcs     //
 
 
-static char* my_strdup(const char* s) {
+char* mystrdup(const char* s) {
     if (s == NULL) return NULL;
     size_t len = strlen(s) + 1;
     char *p = malloc(len);
@@ -72,6 +71,7 @@ static char* my_strdup(const char* s) {
     }
     return p;
 }
+
 
 //exits compiler immediately with error msg & exit_code
 static void parse_error(Parser *p, int exit_code, const char *msg){
@@ -356,6 +356,20 @@ DataType parse_func_call(Parser *p){
     else if(strcmp(func_name, "chr") == 0)     codegen_builtin_chr();
     else if(strcmp(func_name, "ord") == 0)     codegen_builtin_ord();
 
+    //codegen built in finctions
+    if(strcmp(func_name, "print") == 0)     codegen_builtin_print(arg_types[0]);
+    else if(strcmp(func_name, "readInt") == 0)     codegen_builtin_read_int();
+    else if(strcmp(func_name, "readDouble") == 0)     codegen_builtin_read_double();
+    else if(strcmp(func_name, "readLine") == 0)     codegen_builtin_read_line();
+
+    else if(strcmp(func_name, "toStr") == 0)     codegen_builtin_to_str(arg_types[0]);
+    else if(strcmp(func_name, "toInt") == 0)     codegen_builtin_to_int();
+
+    else if(strcmp(func_name, "strLength") == 0)     codegen_builtin_str_length();
+
+    else if(strcmp(func_name, "chr") == 0)     codegen_builtin_chr();
+    else if(strcmp(func_name, "ord") == 0)     codegen_builtin_ord();
+
     else if(strcmp(func_name, "subStr") == 0)     codegen_builtin_substr();
     else    codegen_call_func(func_name);
 
@@ -412,7 +426,7 @@ void parse_assign(Parser *p){
         parse_error(p, sem_res, "Semantic error in assigment");
     }
 
-    int scope_id = sem_get_scope_id();
+    int scope_id = sem_get_scope_id(var_name);
     codegen_pop_to_var(var_name, scope_id);
 
 }
@@ -546,7 +560,7 @@ static void parse_var(Parser *p){
     }
 
     //codegen
-    int scope_id = sem_get_scope_id();
+    int scope_id = sem_get_scope_id(var_name);
     codegen_def_var(var_name, scope_id);
     codegen_pop_to_var(var_name, scope_id);
 }
@@ -836,7 +850,6 @@ void parse_statement(Parser *p, unsigned curr_indent){
 }
 
 
-
 //parses the entire code
 //use this in main.c
 int parse(Lexer *lexer){
@@ -889,4 +902,5 @@ int parse(Lexer *lexer){
     sem_dispose();
 
     return 0;
+
 }

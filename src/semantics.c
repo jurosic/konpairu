@@ -1,5 +1,5 @@
 #include "semantics.h"
-#include "bst.h"
+#include "symtable.h"
 #include "token.h"
 #include <stdlib.h>
 #include <stdbool.h>
@@ -23,9 +23,24 @@ bool is_numeric(DataType type){
     return false;
 }
 
+// Registers built-in functions of ifj26
+void register_built_in_functions(){
+    sem_define_function("print", TYPE_UNIT, 1, (DataType[]){ TYPE_ANY });
+    sem_define_function("readLine", TYPE_STRING, 0, NULL);
+    sem_define_function("readInt", TYPE_INT, 0, NULL);
+    sem_define_function("readDouble", TYPE_DOUBLE, 0, NULL);
+    sem_define_function("toStr", TYPE_STRING, 1, (DataType[]){ TYPE_ANY });
+    sem_define_function("toInt", TYPE_INT, 1, (DataType[]){ TYPE_DOUBLE });
+    sem_define_function("strLength", TYPE_INT, 1, (DataType[]){ TYPE_STRING });
+    sem_define_function("subStr", TYPE_STRING, 3, (DataType[]){ TYPE_STRING, TYPE_INT, TYPE_INT });
+    sem_define_function("ord", TYPE_INT, 2, (DataType[]){ TYPE_STRING, TYPE_INT });
+    sem_define_function("chr", TYPE_STRING, 1, (DataType[]){ TYPE_INT });
+}
+
 // Initializes the semantic module (creates the global scope tree).
 void sem_init(){
     bst_init(&global_symtable);
+    register_built_in_functions();
     current_scope = NULL;
     next_scope_id = 1; // Reset for clean unit testing
 }
@@ -64,8 +79,17 @@ void sem_dispose(){
 }
 
 // Returns id of current scope (0 for global scope)
-int sem_get_scope_id(){
-    if (current_scope == NULL) return 0;
+// Returns current_scope->scope_id if nothing is found
+int sem_get_scope_id(char *key){
+    Scope *scope = current_scope;
+
+    while (scope != NULL) {
+        if (bst_search(scope->tree, key) != NULL) return scope->scope_id;
+            
+        scope = scope->outer;
+    }
+
+    if(!bst_search(global_symtable, key)) return 0;
 
     return current_scope->scope_id;
 }
@@ -85,10 +109,12 @@ SymbolData* sem_get_variable(char *key){
 }
 
 // Called when parser reads: val x: Int = 5 (or var x = 5)
-// Checks if 'key' already exists in the CURRENT scope (Error 4).
+// Checks if 'key' already exists in the CURRENT scope (Error 4)
+// Checks if bool variable is being created (Error 6)
 // If not, inserts it into the top AVL tree.
 int sem_define_variable(char *key, SymbolData val, bool is_mutable){
     if(current_scope == NULL) return 99; // No global variables
+    if(val.type == TYPE_BOOLEAN) return 6; // No boolthen extension
 
     val.symbol_type = SYMBOL_VAR;
     val.data.var_data.is_mutable = is_mutable;
@@ -107,7 +133,7 @@ int sem_get_variable_type(char *key, DataType *out_type){
         return 0;
     }
     return 3;
-    // !not accounting for global scope
+    // not accounting for global scope
 }
 
 // Called when parser reads: x = 10
@@ -158,7 +184,7 @@ int sem_eval_binary_op(DataType type1, DataType type2, bool *convert_left, bool 
             return 6;
         case TOKEN_EQUALS: // fallthrough
         case TOKEN_NOTEQUALS: // fallthough
-            if((type1 == TYPE_UNIT && type2 == TYPE_UNIT)  || (type1 == TYPE_BOOLEAN && type2 == TYPE_BOOLEAN)){
+            if((type1 == TYPE_UNIT && type2 == TYPE_UNIT)){
                 *out_result_type = TYPE_BOOLEAN;
                 return 0;
             }
@@ -202,6 +228,7 @@ int sem_eval_unary_op(DataType type, TokenType operator, DataType *out_result_ty
 // Inserts function signature (key, param count, param types, return type) into the GLOBAL tree.
 int sem_define_function(char *key, DataType return_type, int param_count, DataType *param_types){
     if(current_scope != NULL) return 99; // Error, functions should be defined only in global scope(parser should catch)
+    if (return_type == TYPE_BOOLEAN) return 6; // No boolthen extension
 
     // Move data to one variable
     SymbolData symbol_data;
@@ -224,7 +251,7 @@ int sem_check_function_call(char *key, int arg_count, DataType *arg_types, DataT
     if(func_data == NULL) return 3;
     if(func_data->data.func_data.param_count != arg_count) return 5;
     for(int i = 0; i < func_data->data.func_data.param_count; i++){
-        if(func_data->data.func_data.param_types[i] != arg_types[i]) return 5;
+        if(func_data->data.func_data.param_types[i] != arg_types[i] && func_data->data.func_data.param_types[i] != TYPE_ANY) return 5;
     }
 
     *out_return_type = func_data->type;
@@ -235,7 +262,8 @@ int sem_check_function_call(char *key, int arg_count, DataType *arg_types, DataT
 // Compares 'expr_type' with the expected return type of the CURRENTLY parsed function.
 // Returns Error 6 on type mismatch or if return is used where it shouldn't be.
 int sem_check_return(DataType current_func_expected_type, DataType expr_type){
-    if(current_func_expected_type == expr_type) return 0;
+    if (expr_type == TYPE_BOOLEAN) return 6; // No boolthen extension
+    if (current_func_expected_type == expr_type) return 0;
 
     else return 6;
 }

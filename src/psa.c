@@ -12,7 +12,18 @@
 #define INIT_STACK_CAP 16
 #define STACK_CAP_MUL 2         //multiplier for stack capacity if full
 
+static void prec_item_free_strings(PrecStackItem *item) {
+    if (!item || item->sym_type != PREC_SYM_TERMINAL) return;
 
+    if (item->token_type == TOKEN_ID) {
+        free(item->name);
+        item->name = NULL;
+        item->value.name = NULL;
+    } else if (item->token_type == TOKEN_STRING) { // <-- match your enum name in lexer.h
+        free(item->value.str_val);                         // <-- match your union field in lexer.h
+        item->value.str_val = NULL;
+    }
+}
 
 static void prec_item_free_strings(PrecStackItem *item) {
     if (!item || item->sym_type != PREC_SYM_TERMINAL) return;
@@ -209,7 +220,7 @@ int reduce_rule(PrecStack *s){
                 int sem_res = sem_get_variable_type(handle->name, &id_type);
                 if(sem_res != 0)    return sem_res;
                 result_nonterm.data_type = id_type;
-                int scope_id = sem_get_scope_id();
+                int scope_id = sem_get_scope_id(handle->name);
                 codegen_push_var(handle[0].name, scope_id);
                 break;
 

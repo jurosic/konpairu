@@ -1,8 +1,10 @@
 bin/
 tests/bin
+ifj26
 
 ic26int*
 *.code
+*.ifj
 
 *.o
 

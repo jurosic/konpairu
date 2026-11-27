@@ -1,7 +1,7 @@
 #ifndef SEMANTICS_H
 #define SEMANTICS_H
 
-#include "bst.h"
+#include "symtable.h"
 #include "token.h"
 #include <stdbool.h>
 
@@ -20,7 +20,8 @@ void sem_leave_scope();
 void sem_dispose();
 
 // Returns id of current scope (0 for global scope)
-int sem_get_scope_id();
+// Returns 99 if nothing is found
+int sem_get_scope_id(char *key);
 
 // Called when parser reads: val x: Int = 5 (or var x = 5)
 // Checks if 'key' already exists in the CURRENT scope (Error 4).

@@ -110,6 +110,8 @@ void codegen_free(void) {
     buf_free(&out_buf);
     buf_free(&func_defs_buf);
     buf_free(&func_body_buf);
+	free(current_func_name);
+	current_func_name = NULL;
     active_buf = &out_buf;
 }
 
@@ -146,15 +148,15 @@ void codegen_program_start(void) {
     emit("POPS LF@s\n");
     emit("MOVE LF@res string@\n");
     emit("STRLEN LF@len LF@s\n");
-    // Bounds checks: from < 0 || from >= len || to < from || to > len -> return ""
+    // Bounds checks: from < 0 || from >= len || to < from || to > len -> return 40
     emit("LT LF@cond LF@from int@0\n");
-    emit("JUMPIFEQ $$substr_end LF@cond bool@true\n");
+    emit("JUMPIFEQ $$substr_err LF@cond bool@true\n");
     emit("LT LF@cond LF@from LF@len\n");
-    emit("JUMPIFNEQ $$substr_end LF@cond bool@true\n");
+    emit("JUMPIFNEQ $$substr_err LF@cond bool@true\n");
     emit("LT LF@cond LF@to LF@from\n");
-    emit("JUMPIFEQ $$substr_end LF@cond bool@true\n");
+    emit("JUMPIFEQ $$substr_err LF@cond bool@true\n");
     emit("GT LF@cond LF@to LF@len\n");
-    emit("JUMPIFEQ $$substr_end LF@cond bool@true\n");
+    emit("JUMPIFEQ $$substr_err LF@cond bool@true\n");
     // Loop from..to-1
     emit("LABEL $$substr_loop\n");
     emit("LT LF@cond LF@from LF@to\n");
@@ -167,6 +169,8 @@ void codegen_program_start(void) {
     emit("PUSHS LF@res\n");
     emit("POPFRAME\n");
     emit("RETURN\n\n");
+	emit("LABEL $$substr_err\n");
+	emit("EXIT int@40\n\n");
 }
 
 // Helper: prints a C string in IFJcode26 escaped format (e.g. "a b" -> "a\032b")
@@ -211,6 +215,10 @@ void codegen_push_string(const char *str) {
 
 void codegen_push_unit(void) {
     emit("PUSHS nil@nil\n");
+}
+
+void codegen_push_bool(bool val) {
+	emit("PUSHS bool@%s\n", val ? "true" : "false");
 }
 
 void codegen_int2float_top(void) {
@@ -412,7 +420,7 @@ void codegen_builtin_ord(void) {
     emit("JUMP $ord_end_%d\n", id);
 
     emit("LABEL $ord_invalid_%d\n", id);
-    emit("PUSHS int@0\n");
+    emit("PUSHS int@-1\n");
     emit("LABEL $ord_end_%d\n", id);
 }
 
@@ -426,8 +434,14 @@ void codegen_call_func(const char *func_name) {
 }
 
 void codegen_func_return(void) {
-    emit("POPFRAME\n");
-    emit("RETURN\n");
+	if (current_func_name == NULL) {
+		emit("POPS GF@$tmp1\n");
+		emit("POPFRAME\n");
+		emit("EXIT int@0\n");
+	} else {
+		emit("POPFRAME\n");
+		emit("RETURN\n");
+	}
 }
 
 void codegen_discard_stack_top(void) {
@@ -441,11 +455,17 @@ void codegen_builtin_print(DataType arg_type) {
     } else {
         emit("WRITE GF@$tmp1\n");
     }
+	emit("PUSHS nil@nil\n");
 }
 
 void codegen_builtin_read_line(void) {
-    emit("READ GF@$tmp1 string\n");
-    emit("PUSHS GF@$tmp1\n");
+	int id = codegen_next_label_id();
+	emit("READ GF@$tmp1 string\n");
+	emit("TYPE GF@$tmp2 GF@$tmp1\n");
+	emit("JUMPIFNEQ $readline_ok_%d GF@$tmp2 string@nil\n", id);
+	emit("MOVE GF@$tmp1 string@\n");
+	emit("LABEL $readline_ok_%d\n", id);
+	emit("PUSHS GF@$tmp1\n");
 }
 
 void codegen_builtin_read_int(void) {

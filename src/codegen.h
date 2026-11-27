@@ -2,7 +2,7 @@
 #define CODEGEN_H
 
 #include <stdbool.h>
-#include "bst.h"
+#include "symtable.h"
 #include "token.h"
 
 // Initializes the code internal buffer and emits the .IFJcode26 header.
@@ -34,7 +34,7 @@ void codegen_push_int(int val);
 void codegen_push_double(double val);
 void codegen_push_string(const char *str);
 void codegen_push_unit(void);
-
+void codegen_push_bool(bool val);
 
 // --- Expressions & Conversions ---
 // Converts the top of the stack from Int to Float (INT2FLOATS)
@@ -132,9 +132,6 @@ void codegen_builtin_chr(void);
 
 // Pops (s: String, idx: Int) from the stack and pushes the ASCII code (or 0 if out of bounds).
 void codegen_builtin_ord(void);
-
-// Pops (s1: String, s2: String) from the stack and pushes -1, 0, or 1.
-void codegen_builtin_strcmp(void);
 
 // Pops (s: String, from: Int, to: Int) from the stack and pushes substring [from, to).
 void codegen_builtin_substr(void);

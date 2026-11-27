@@ -223,6 +223,8 @@ def run_compiler(compiler_path: str, code: str, use_valgrind: bool):
             cmd,
             input=code,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             capture_output=True,
             timeout=timeout,
         )
