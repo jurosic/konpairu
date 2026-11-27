@@ -148,15 +148,15 @@ void codegen_program_start(void) {
     emit("POPS LF@s\n");
     emit("MOVE LF@res string@\n");
     emit("STRLEN LF@len LF@s\n");
-    // Bounds checks: from < 0 || from >= len || to < from || to > len -> return ""
+    // Bounds checks: from < 0 || from >= len || to < from || to > len -> return 40
     emit("LT LF@cond LF@from int@0\n");
-    emit("JUMPIFEQ $$substr_end LF@cond bool@true\n");
+    emit("JUMPIFEQ $$substr_err LF@cond bool@true\n");
     emit("LT LF@cond LF@from LF@len\n");
-    emit("JUMPIFNEQ $$substr_end LF@cond bool@true\n");
+    emit("JUMPIFNEQ $$substr_err LF@cond bool@true\n");
     emit("LT LF@cond LF@to LF@from\n");
-    emit("JUMPIFEQ $$substr_end LF@cond bool@true\n");
+    emit("JUMPIFEQ $$substr_err LF@cond bool@true\n");
     emit("GT LF@cond LF@to LF@len\n");
-    emit("JUMPIFEQ $$substr_end LF@cond bool@true\n");
+    emit("JUMPIFEQ $$substr_err LF@cond bool@true\n");
     // Loop from..to-1
     emit("LABEL $$substr_loop\n");
     emit("LT LF@cond LF@from LF@to\n");
@@ -169,6 +169,8 @@ void codegen_program_start(void) {
     emit("PUSHS LF@res\n");
     emit("POPFRAME\n");
     emit("RETURN\n\n");
+	emit("LABEL $$substr_err\n");
+	emit("EXIT int@40\n\n");
 }
 
 // Helper: prints a C string in IFJcode26 escaped format (e.g. "a b" -> "a\032b")
@@ -418,7 +420,7 @@ void codegen_builtin_ord(void) {
     emit("JUMP $ord_end_%d\n", id);
 
     emit("LABEL $ord_invalid_%d\n", id);
-    emit("PUSHS int@0\n");
+    emit("PUSHS int@-1\n");
     emit("LABEL $ord_end_%d\n", id);
 }
 
