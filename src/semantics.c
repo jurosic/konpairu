@@ -79,17 +79,18 @@ void sem_dispose(){
 }
 
 // Returns id of current scope (0 for global scope)
-// Returns error 99 if nothing is found
+// Returns 99 if nothing is found
 int sem_get_scope_id(char *key){
     Scope *scope = current_scope;
 
     while (scope != NULL) {
-        if (bst_search(scope->tree, key) != NULL) return scope->scope_id; // Returning closest scope_id
+        if (bst_search(scope->tree, key) != NULL) return scope->scope_id;
             
         scope = scope->outer;
     }
 
-    if (bst_search(scope->tree, key) != NULL) return 0;
+    if(bst_search(global_symtable, key)) return 0;
+
     return 99;
 }
 

@@ -1,4 +1,4 @@
-#include "bst.h"
+#include "symtable.h"
 #include <stdlib.h>
 #include <string.h>
 
