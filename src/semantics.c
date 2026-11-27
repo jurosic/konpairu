@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+
+// AI was used to generate all comments above functions that explain error codes to guide the creation of function and clear summary
+
+
 // A single frame on the scope stack
 typedef struct Scope {
     int scope_id;           // Specific id for scope
