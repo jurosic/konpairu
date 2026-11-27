@@ -133,9 +133,6 @@ void codegen_builtin_chr(void);
 // Pops (s: String, idx: Int) from the stack and pushes the ASCII code (or 0 if out of bounds).
 void codegen_builtin_ord(void);
 
-// Pops (s1: String, s2: String) from the stack and pushes -1, 0, or 1.
-void codegen_builtin_strcmp(void);
-
 // Pops (s: String, from: Int, to: Int) from the stack and pushes substring [from, to).
 void codegen_builtin_substr(void);
 

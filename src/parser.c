@@ -342,7 +342,6 @@ DataType parse_func_call(Parser *p){
     else if(strcmp(func_name, "chr") == 0)     codegen_builtin_chr();
     else if(strcmp(func_name, "ord") == 0)     codegen_builtin_ord();
 
-    else if(strcmp(func_name, "strcmp") == 0)     codegen_builtin_strcmp();
     else if(strcmp(func_name, "subStr") == 0)     codegen_builtin_substr();
     else    codegen_call_func(func_name);
 
