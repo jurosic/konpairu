@@ -209,7 +209,7 @@ int reduce_rule(PrecStack *s){
                 int sem_res = sem_get_variable_type(handle->name, &id_type);
                 if(sem_res != 0)    return sem_res;
                 result_nonterm.data_type = id_type;
-                int scope_id = sem_get_scope_id();
+                int scope_id = sem_get_scope_id(handle->name);
                 codegen_push_var(handle[0].name, scope_id);
                 free(handle->name);
                 handle->name = NULL;
@@ -227,7 +227,7 @@ int reduce_rule(PrecStack *s){
             handle[1].sym_type == PREC_SYM_TERMINAL &&
             handle[1].token_type == TOKEN_PAREN_R){
                 
-        result_nonterm.data_type == TYPE_UNIT;
+        result_nonterm.data_type = TYPE_UNIT;
         codegen_push_unit();
     }
     //<E> -> ( <E> )
