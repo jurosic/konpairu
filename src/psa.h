@@ -1,6 +1,7 @@
 #ifndef PSA_H
 #define PSA_H
 
+#include "lexer.h"
 #include "token.h"
 #include "semantics.h"
 #include "codegen.h"
@@ -12,14 +13,14 @@
 //'='   =   equal
 //' '   =   error
 static const char prec_table[7][7] = {
-    //*/     +-     REL     (        )       i       END
+    //*/     +-     REL         (        )        i        END
     {'>',    '>',     '>',     '<',     '>',     '<',     '>'},   //*/
     {'<',    '>',     '>',     '<',     '>',     '<',     '>'},   //*-
     {'<',    '<',     ' ',     '<',     '>',     '<',     '>'},   //REL
     {'<',    '<',     '<',     '<',     '=',     '<',     ' '},   //(
     {'>',    '>',     '>',     ' ',     '>',     ' ',     '>'},   //)
     {'>',    '>',     '>',     ' ',     '>',     ' ',     '>'},   //i
-    {'<',    '<',     '<',     '<',     ' ',     '<',     '$'}   //END
+    {'<',    '<',     '<',     '<',     '$',     '<',     '$'}   //END
 };
 
 
@@ -47,7 +48,7 @@ typedef struct{
     PrecSymType sym_type;
     TokenType token_type;
     DataType data_type;
-    char *name;
+    char name[LEXERLIMIT_ID_LENGTH + 1];
     TokenValue value;
 }PrecStackItem;
 

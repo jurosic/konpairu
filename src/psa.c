@@ -14,6 +14,15 @@
 
 
 
+static void prec_item_free_strings(PrecStackItem *item) {
+    if (!item || item->sym_type != PREC_SYM_TERMINAL) return;
+
+    if(item->token_type == TOKEN_LIT_STR){
+        free(item->value.str_val);
+        item->value.str_val = NULL;
+    }
+}
+
 PrecStack* prec_stack_init(void){
     PrecStack *s = malloc(sizeof(PrecStack));
     if(!s) return NULL;
@@ -25,10 +34,12 @@ PrecStack* prec_stack_init(void){
     }
     s->top = 0;
     s->cap = INIT_STACK_CAP;
-    PrecStackItem end_item = {   .sym_type = PREC_SYM_TERMINAL,
-                        .token_type = TOKEN_EOF,
-                        .data_type = TYPE_UNIT,
-                        .name = NULL};
+    PrecStackItem end_item = {   
+        .sym_type = PREC_SYM_TERMINAL,
+        .token_type = TOKEN_EOF,
+        .data_type = TYPE_UNIT,
+        .name = ""
+    };
     
     s->items[s->top++] = end_item;
     return s;
@@ -36,6 +47,9 @@ PrecStack* prec_stack_init(void){
 
 void prec_stack_free(PrecStack *s){
     if(s){
+        for (size_t i = 0; i < s->top; i++) {
+            prec_item_free_strings(&s->items[i]);
+        }
         free(s->items);
         free(s);
     }
@@ -144,7 +158,7 @@ bool prec_stack_insert_shift(PrecStack *s){
     s->items[target_idx].sym_type = PREC_SYM_SHIFT;
     s->items[target_idx].token_type = TOKEN_EOF;
     s->items[target_idx].data_type = TYPE_UNIT;
-    s->items[target_idx].name = NULL;
+    s->items[target_idx].name[0] = '\0';
     s->top++;
 
     return true;
@@ -166,7 +180,7 @@ int reduce_rule(PrecStack *s){
     PrecStackItem result_nonterm;
     result_nonterm.sym_type = PREC_SYM_NONTERM;
     result_nonterm.token_type = TOKEN_EOF;
-    result_nonterm.name = NULL;
+    result_nonterm.name[0] = '\0';
 
     //<E> -> i
     if(handle_len == 1 && handle[0].sym_type == PREC_SYM_TERMINAL){
@@ -183,28 +197,37 @@ int reduce_rule(PrecStack *s){
             case TOKEN_LIT_STR:
                 result_nonterm.data_type = TYPE_STRING;
                 codegen_push_string(handle[0].value.str_val);
+                free(handle[0].value.str_val);
+                handle[0].value.str_val = NULL;
                 break;
             case TOKEN_LIT_BOOL:
                 result_nonterm.data_type = TYPE_BOOLEAN;
-                codegen_push_int(handle[0].value.bool_val);
+                codegen_push_bool(handle[0].value.bool_val);
                 break;
             case TOKEN_ID:
                 DataType id_type;
                 int sem_res = sem_get_variable_type(handle->name, &id_type);
                 if(sem_res != 0)    return sem_res;
                 result_nonterm.data_type = id_type;
-                //TO DO: semantics func for scope?
-                //temporary scope_id = 0 
-                int scope_id = 0;
+                int scope_id = sem_get_scope_id();
                 codegen_push_var(handle[0].name, scope_id);
-
                 break;
+
             default:
                 return 2;
             
         }
     }
-
+    // <E> -> ( ) (Unit)
+    else if(handle_len == 2 &&
+            handle[0].sym_type == PREC_SYM_TERMINAL &&
+            handle[0].token_type == TOKEN_PAREN_L &&
+            handle[1].sym_type == PREC_SYM_TERMINAL &&
+            handle[1].token_type == TOKEN_PAREN_R){
+                
+        result_nonterm.data_type = TYPE_UNIT;
+        codegen_push_unit();
+    }
     //<E> -> ( <E> )
     else if(handle_len == 3 &&
             handle[0].sym_type == PREC_SYM_TERMINAL &&
@@ -248,7 +271,7 @@ int reduce_rule(PrecStack *s){
 
     
     s->top = (size_t)mark_idx;
-    prec_stack_push(s, result_nonterm);
+    if (!prec_stack_push(s, result_nonterm)) return 99;
     return 0;
     
 }
